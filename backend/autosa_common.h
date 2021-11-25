@@ -23,7 +23,7 @@
 #include <isl/val.h>
 #include <isl/polynomial.h>
 
-#include <cJSON/cJSON.h>
+#include <cJSON.h>
 
 #include "ppcg.h"
 #include "schedule.h"

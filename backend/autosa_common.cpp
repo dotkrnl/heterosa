@@ -1,7 +1,7 @@
 /* Defines functions used for AutoSA structs. */
 
 #include <isl/id.h>
-#include <cJSON/cJSON.h>
+#include <cJSON.h>
 
 #include "autosa_common.h"
 #include "autosa_utils.h"
