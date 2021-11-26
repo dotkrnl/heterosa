@@ -969,7 +969,7 @@ def reorder_module_calls(lines):
 def xilinx_run(
         kernel_call,
         kernel_def,
-        kernel='autosa.tmp/output/src/kernel_kernel.cpp',
+        kernel='heterosa.out/src/kernel_kernel.cpp',
         host='opencl'):
     """ Generate the kernel file for Xilinx platform
 
@@ -1081,7 +1081,7 @@ def insert_intel_pragmas(lines):
 def intel_run(
         kernel_call,
         kernel_def,
-        kernel='autosa.tmp/output/src/kernel_kernel.cpp'):
+        kernel='heterosa.out/src/kernel_kernel.cpp'):
     """ Generate the kernel file for Intel platform
 
     We will extract all the fifo declarations and module calls.
@@ -1184,8 +1184,7 @@ def intel_run(
         module_calls,
         fifo_decls)
 
-
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description='==== AutoSA CodeGen ====')
     parser.add_argument(
         '-c',
@@ -1224,3 +1223,6 @@ if __name__ == "__main__":
         intel_run(args.kernel_call, args.kernel_def, args.output)
     elif args.target == 'autosa_hls_c':
         xilinx_run(args.kernel_call, args.kernel_def, args.output, args.host)
+
+if __name__ == "__main__":
+    main()

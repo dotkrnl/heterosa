@@ -9,9 +9,9 @@ def exec_sys_cmd(cmd):
     ret = p.wait()
     return ret
 
-if __name__ == "__main__":
+def main():
     # Some default values
-    output_dir = './autosa.tmp/output'
+    output_dir = './heterosa.out'
     target = 'autosa_hls_c'
     src_file_prefix = 'kernel'
     xilinx_host = 'opencl'
@@ -20,7 +20,7 @@ if __name__ == "__main__":
     # Parse and update the arguments
     n_arg = len(sys.argv)
     argv = sys.argv
-    argv[0] = './src/autosa'
+    argv[0] = 'heterosa_cc'
     search_idx = -1
     for i in range(n_arg):
         arg = argv[i]            
@@ -42,20 +42,18 @@ if __name__ == "__main__":
     if search:
         del argv[search_idx]
 
-    # Check if the output directory exists
-    if not os.path.isdir(output_dir):
-        raise RuntimeError('Output directory is not specified.')
+    os.makedirs(output_dir + '/src', exist_ok=True)
+    os.makedirs(output_dir + '/latency_est', exist_ok=True)
+    os.makedirs(output_dir + '/resource_est', exist_ok=True)
+    os.makedirs(output_dir + '/tuning', exist_ok=True)
 
     # Execute the AutoSA    
     #start_time = time.perf_counter()
     process = subprocess.run(argv)
-    if process.returncode != 0:
+    if process.returncode != 0 or not os.path.exists(output_dir + '/src/completed'):
         print("[AutoSA] Error: Exit abnormally!")
         sys.exit(process.returncode)
-    else:        
-        if not os.path.exists(output_dir + '/src/completed'):
-            sys.exit(process.returncode)    
-    exec_sys_cmd(f'rm {output_dir}/src/completed')                   
+    exec_sys_cmd(f'rm {output_dir}/src/completed')       
     #runtime = time.perf_counter() - start_time
     #print(f'runtime: {runtime}')
 
@@ -66,14 +64,10 @@ if __name__ == "__main__":
         raise RuntimeError(f'{output_dir}/src/{src_file_prefix}_top_gen.cpp not exists.')
     cmd = 'g++ -o ' + output_dir + '/src/top_gen ' + output_dir + \
           '/src/' + src_file_prefix + '_top_gen.cpp ' + \
-          '-I./src/isl/include -L./src/isl/.libs -lisl'
+          '-lisl'
     exec_sys_cmd(cmd)
     my_env = os.environ.copy()
     cwd = os.getcwd()
-    if 'LD_LIBRARY_PATH' in my_env:
-        my_env['LD_LIBRARY_PATH'] += os.pathsep + cwd + '/src/isl/.libs'
-    else:
-        my_env['LD_LIBRARY_PATH'] = os.pathsep + cwd + '/src/isl/.libs'
     cmd = output_dir + '/src/top_gen'
     process = subprocess.run(cmd.split(), env=my_env)
     #runtime = time.perf_counter() - start_time
@@ -82,12 +76,12 @@ if __name__ == "__main__":
     if not search:
         # Generate the final code    
         if target == 'autosa_hls_c':
-            cmd = './autosa_scripts/codegen.py -c ' + output_dir + \
+            cmd = 'heterosa_codegen -c ' + output_dir + \
                   '/src/top.cpp -d ' + output_dir + '/src/' + src_file_prefix + \
                   '_kernel_modules.cpp -t ' + target + ' -o ' + output_dir + '/src/' + \
                   src_file_prefix + '_kernel.cpp'
         elif target == 'autosa_opencl':
-            cmd = './autosa_scripts/codegen.py -c ' + output_dir + \
+            cmd = 'heterosa_codegen -c ' + output_dir + \
                   '/src/top.cpp -d ' + output_dir + '/src/' + src_file_prefix + \
                   '_kernel_modules.cl -t ' + target + ' -o ' + output_dir + '/src/' + \
                   src_file_prefix + '_kernel.cl'
@@ -104,14 +98,17 @@ if __name__ == "__main__":
         if os.path.exists(headers):
             exec_sys_cmd(f'cp {headers} {output_dir}/src/')        
 
-#        # Clean up the temp files        
-#        if target == 'autosa_hls_c' and xilinx_host == 'opencl':
-#            exec_sys_cmd(f'rm {output_dir}/src/{src_file_prefix}_kernel.h')            
-#        exec_sys_cmd(f'rm {output_dir}/src/top_gen')
-#        exec_sys_cmd(f'rm {output_dir}/src/top.cpp')
-#        exec_sys_cmd(f'rm {output_dir}/src/{src_file_prefix}_top_gen.cpp')    
-#        exec_sys_cmd(f'rm {output_dir}/src/{src_file_prefix}_top_gen.h')    
-#        if target == 'autosa_hls_c':
-#            exec_sys_cmd(f'rm {output_dir}/src/{src_file_prefix}_kernel_modules.cpp')
-#        elif target == 'autosa_opencl':
-#            exec_sys_cmd(f'rm {output_dir}/src/{src_file_prefix}_kernel_modules.cl')    
+        # Clean up the temp files        
+        if target == 'autosa_hls_c' and xilinx_host == 'opencl':
+            exec_sys_cmd(f'rm {output_dir}/src/{src_file_prefix}_kernel.h')            
+        exec_sys_cmd(f'rm {output_dir}/src/top_gen')
+        exec_sys_cmd(f'rm {output_dir}/src/top.cpp')
+        exec_sys_cmd(f'rm {output_dir}/src/{src_file_prefix}_top_gen.cpp')    
+        exec_sys_cmd(f'rm {output_dir}/src/{src_file_prefix}_top_gen.h')    
+        if target == 'autosa_hls_c':
+            exec_sys_cmd(f'rm {output_dir}/src/{src_file_prefix}_kernel_modules.cpp')
+        elif target == 'autosa_opencl':
+            exec_sys_cmd(f'rm {output_dir}/src/{src_file_prefix}_kernel_modules.cl')    
+
+if __name__ == "__main__":
+    main()

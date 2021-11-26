@@ -1695,7 +1695,7 @@ def xilinx_run(cmd, hw_info, setting, training, search, verbose, tmp_dir):
         config['logger'].info(f'Run search phase...')
         search_xilinx(config)
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description='==== AutoSA Optimizer ====')
     parser.add_argument(
         '-c',
@@ -1759,3 +1759,6 @@ if __name__ == "__main__":
             args.search,
             args.verbose,
             args.tmp_dir)
+
+if __name__ == "__main__":
+    main()

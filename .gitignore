@@ -1,3 +1,7 @@
 build
+__pycache__
 .nfs*
 .vscode
+*.egg-info
+*.pyc
+*.out

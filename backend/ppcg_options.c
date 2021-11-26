@@ -130,7 +130,7 @@ ISL_ARG_INT(struct autosa_options, max_local_memory, 0,
 			"max-local-memory", "size", 8192, "maximal amount of local memory")
 ISL_ARG_INT(struct autosa_options, max_sa_dim, 0,
 			"max-sa-dim", "dim", 2, "maximal systolic array dimension")
-ISL_ARG_STR(struct autosa_options, output_dir, 0, "output-dir", "dir", "./autosa.tmp/output",
+ISL_ARG_STR(struct autosa_options, output_dir, 0, "output-dir", "dir", "./heterosa.out",
 			"AutoSA Output directory")
 ISL_ARG_STR(struct autosa_options, sa_sizes, 0, "sa-sizes", "sizes", NULL,
 			"per kernel PE optimization tile sizes")

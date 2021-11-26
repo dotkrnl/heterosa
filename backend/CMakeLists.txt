@@ -1,4 +1,4 @@
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(LLVM_FIND_VERSION 6.0.0)
@@ -131,13 +131,14 @@ FetchContent_Declare(
 FetchContent_GetProperties(cjson)
 if(NOT cjson_POPULATED)
     FetchContent_Populate(cjson)
+    SET(BUILD_SHARED_LIBS OFF CACHE BOOL "Prefer static libraries")
     add_subdirectory(
         ${cjson_SOURCE_DIR} ${cjson_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-add_executable(heterosa)
+add_executable(heterosa_cc)
 target_sources(
-    heterosa
+    heterosa_cc
     PRIVATE
     cpu.c
     cpu.h
@@ -188,15 +189,21 @@ target_sources(
     autosa_xilinx_hls_c.cpp
 )
 target_include_directories(
-    heterosa
+    heterosa_cc
     PRIVATE
     ${cjson_SOURCE_DIR}
 )
 target_link_libraries(
-    heterosa
+    heterosa_cc
     PRIVATE
     isl
     pet
     barvinok
     cjson
+)
+
+include(GNUInstallDirs)
+install(
+  TARGETS heterosa_cc
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
