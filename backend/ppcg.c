@@ -38,8 +38,6 @@
 #include "autosa_xilinx_hls_c.h"
 #include "ppcg_options.h"
 
-//#define _DEBUG
-
 struct options {
   struct pet_options *pet;
   struct ppcg_options *ppcg;
@@ -847,15 +845,9 @@ static int rar_sol_smart_pick(__isl_keep isl_mat *mat, struct ppcg_scop *ps) {
 static __isl_give isl_map *construct_pseudo_dep_rar(__isl_keep isl_map *map) {
   isl_set *set;
 
-  //#ifdef _DEBUG
-  //	DBGMAP(stdout, map, isl_map_get_ctx(map));
-  //#endif
   set = isl_map_domain(isl_map_copy(map));
   isl_map *dep_map;
   dep_map = isl_set_identity(set);
-  //#ifdef _DEBUG
-  //	DBGMAP(stdout, dep_map, isl_map_get_ctx(dep_map));
-  //#endif
 
   return dep_map;
 }
@@ -919,10 +911,6 @@ static isl_stat build_rar_dep(__isl_take isl_map *map, void *user) {
     return isl_stat_ok;
   }
 
-  //#ifdef _DEBUG
-  //	DBGMAP(stdout, map, isl_map_get_ctx(map));
-  //#endif
-
   /* Take the access function and compute the null space */
   isl_mat *acc_mat = get_acc_mat_from_tagged_acc(map);
   isl_mat *acc_null_mat = isl_mat_right_kernel(acc_mat);
@@ -943,10 +931,6 @@ static isl_stat build_rar_dep(__isl_take isl_map *map, void *user) {
     isl_map *tagged_dep_rar = construct_dep_rar(sol, map);
     isl_vec_free(sol);
     isl_mat_free(acc_null_mat);
-
-    //#ifdef _DEBUG
-    //		DBGMAP(stdout, tagged_dep_rar, isl_map_get_ctx(tagged_dep_rar));
-    //#endif
 
     /* Test if the dependence is empty. In such case, we will build a identity
      * map serving as a pseudo-dependence.
@@ -1363,51 +1347,15 @@ int ppcg_transform(isl_ctx *ctx, const char *input, FILE *out,
  * Return -1 on error.
  */
 static int check_options(isl_ctx *ctx) {
-  struct options *options;  //
+  struct options *options;
   options = isl_ctx_peek_options(ctx, &options_args);
   if (!options)
-    isl_die(ctx, isl_error_internal, "unable to find options", return -1);  //
+    isl_die(ctx, isl_error_internal, "unable to find options", return -1);
   if (options->ppcg->openmp &&
       !isl_options_get_ast_build_atomic_upper_bound(ctx))
-    isl_die(ctx, isl_error_invalid, "OpenMP requires atomic bounds",
-            return -1);  //
+    isl_die(ctx, isl_error_invalid, "OpenMP requires atomic bounds", return -1);
   return 0;
 }
-
-// int main(int argc, char **argv)
-//{
-//	int r;
-//	isl_ctx *ctx;
-//	struct options *options;
-//
-//	options = options_new_with_defaults();
-//	assert(options);
-//
-//	ctx = isl_ctx_alloc_with_options(&options_args, options);
-//	ppcg_options_set_target_defaults(options->ppcg);
-//	isl_options_set_ast_build_detect_min_max(ctx, 1);
-//	isl_options_set_ast_print_macro_once(ctx, 1);
-//	isl_options_set_schedule_whole_component(ctx, 0);
-//	isl_options_set_schedule_maximize_band_depth(ctx, 1);
-//	isl_options_set_schedule_maximize_coincidence(ctx, 1);
-//	pet_options_set_encapsulate_dynamic_control(ctx, 1);
-//	argc = options_parse(options, argc, argv, ISL_ARG_ALL);
-//
-//	if (check_options(ctx) < 0)
-//		r = EXIT_FAILURE;
-//	else if (options->ppcg->target == PPCG_TARGET_CUDA)
-//		r = generate_cuda(ctx, options->ppcg, options->input);
-//	else if (options->ppcg->target == PPCG_TARGET_OPENCL)
-//		r = generate_opencl(ctx, options->ppcg, options->input,
-//				options->output);
-//	else
-//		r = generate_cpu(ctx, options->ppcg, options->input,
-//				options->output);
-//
-//	isl_ctx_free(ctx);
-//
-//	return r;
-//}
 
 int autosa_main_wrap(int argc, char **argv) {
   int r;

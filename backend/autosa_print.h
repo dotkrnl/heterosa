@@ -6,8 +6,6 @@
 #include "autosa_common.h"
 
 /* Arrays */
-__isl_give isl_printer *autosa_array_info_print_call_argument(
-    __isl_take isl_printer *p, struct autosa_array_info *array);
 __isl_give isl_printer *autosa_array_ref_group_print_prefix(
     struct autosa_array_ref_group *group, __isl_take isl_printer *p);
 __isl_give isl_printer *autosa_array_ref_group_print_fifo_name(
@@ -73,8 +71,6 @@ __isl_give isl_printer *autosa_kernel_print_module_call(
     __isl_take isl_printer *p, struct autosa_kernel_stmt *stmt,
     struct autosa_prog *prog, enum platform target);
 void print_func_iterators(FILE *out, struct autosa_drain_merge_func *func);
-__isl_give isl_printer *print_serialize_counter(
-    __isl_take isl_printer *p, struct autosa_hw_module *module);
 __isl_give isl_printer *print_host_serialize_arguments(
     __isl_take isl_printer *p, struct autosa_kernel *kernel,
     struct autosa_array_ref_group *group, struct autosa_hw_module *module,

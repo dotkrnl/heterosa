@@ -155,11 +155,6 @@ static struct autosa_array_ref_group *join_groups(
   group->write = group1->write || group2->write;
   group->exact_write = group1->exact_write && group2->exact_write;
   group->slice = group1->slice || group2->slice;
-  // group->n_ref = group1->n_ref + group2->n_ref;
-  // group->refs = isl_alloc_array(ctx, struct autosa_stmt_access *,
-  //                              group->n_ref);
-  // if (!group->refs)
-  //  return autosa_array_ref_group_free(group);
   group->n_ref = group1->n_ref;
   group->refs = isl_alloc_array(ctx, struct autosa_stmt_access *, group->n_ref);
   if (!group->refs) return autosa_array_ref_group_free(group);
@@ -179,7 +174,6 @@ static struct autosa_array_ref_group *join_groups(
       group->n_ref++;
       group->refs = (struct autosa_stmt_access **)realloc(
           group->refs, group->n_ref * sizeof(struct autosa_stmt_access *));
-      // group->refs[group1->n_ref + i] = group2->refs[i];
       group->refs[group->n_ref - 1] = group2->refs[i];
     }
   }
@@ -1006,11 +1000,6 @@ static __isl_give isl_schedule_node *io_cluster(
         isl_mat_set_element_val(d_mat, 0, i, isl_vec_get_element_val(dir, i));
   }
   null_mat = isl_mat_right_kernel(d_mat);
-  //#ifdef _DEBUG
-  //  DBGVAR(std::cout, isl_mat_rows(null_mat));
-  //  DBGVAR(std::cout, isl_mat_cols(null_mat));
-  //  print_mat(stdout, null_mat);
-  //#endif
 
   for (int i = 0; i < isl_mat_cols(null_mat); i++)
     for (int j = 0; j < isl_mat_rows(null_mat); j++) {
@@ -1039,10 +1028,6 @@ static __isl_give isl_schedule_node *io_cluster(
     ma = isl_multi_aff_set_aff(ma, i, aff);
   }
 
-  //#ifdef _DEBUG
-  //  DBGMUPA(stdout, mupa, isl_schedule_node_get_ctx(node));
-  //  DBGMA(stdout, ma, isl_schedule_node_get_ctx(node));
-  //#endif
   /* Apply the new transformation on the original partial schedule. */
   mupa = isl_multi_union_pw_aff_apply_multi_aff(mupa, isl_multi_aff_copy(ma));
   *io_trans_ma = ma;
@@ -1335,11 +1320,6 @@ static isl_bool internal_group_in_out_overlap(
   access =
       remove_local_accesses_group_flow(kernel, group, access, prefix, read);
 
-  //#ifdef _DEBUG
-  //  DBGUMAP(stdout, access, kernel->ctx);
-  //  DBGUMAP(stdout, prefix, kernel->ctx);
-  //#endif
-
   /* Tagger maps the tagged iteration domain to untagged iteration domain.
    * Iteration domain is tagged to the access function.
    * e.g. [S1[i,j,k] -> _pet_ref_1[]] -> S1[(i),(j),(k)]
@@ -1371,17 +1351,9 @@ static isl_bool internal_group_in_out_overlap(
   overlap = isl_union_map_apply_range(overlap, isl_union_map_reverse(prefix));
   overlap = isl_union_map_coalesce(overlap);
 
-  //#ifdef _DEBUG
-  //  DBGUMAP(stdout, overlap, isl_union_map_get_ctx(overlap));
-  //  DBGUMAP(stdout, prog->scop->tagged_dep_flow,
-  //  isl_union_map_get_ctx(overlap));
-  //#endif
   /* Derive the overlapping set. */
   overlap = isl_union_map_intersect(
       overlap, isl_union_map_copy(prog->scop->tagged_dep_flow));
-  //#ifdef _DEBUG
-  //  DBGUMAP(stdout, overlap, isl_union_map_get_ctx(overlap));
-  //#endif
   empty = isl_union_map_is_empty(overlap);
 
   external = isl_union_map_copy(prog->scop->tagged_dep_flow);
@@ -1415,11 +1387,6 @@ static isl_bool internal_group_in_out_overlap(
     external = isl_union_map_free(external);
   else if (empty)
     external = isl_union_map_universe(external);
-
-  //#ifdef _DEBUG
-  //  DBGUMAP(stdout, external, isl_union_map_get_ctx(external))
-  //  DBGUMAP(stdout, access, isl_union_map_get_ctx(access))
-  //#endif
 
   access = isl_union_map_intersect(access, external);
   empty = isl_union_map_is_empty(access);
@@ -1463,15 +1430,9 @@ static isl_bool io_group_carried_by_array_loops(
       prefix, isl_union_pw_multi_aff_copy(kernel->contraction));
   isl_schedule_node_free(node);
   access = autosa_io_group_access_relation(group, kernel, read, !read);
-  //#ifdef _DEBUG
-  //  DBGUMAP(stdout, access, kernel->ctx);
-  //#endif
   /* Remove the local dependence first. */
   access =
       remove_local_accesses_group_flow(kernel, group, access, prefix, read);
-  //#ifdef _DEBUG
-  //  DBGUMAP(stdout, access, kernel->ctx);
-  //#endif
 
   tagged = group_tagged_access_relation(group);
   tagger = isl_union_pw_multi_aff_copy(prog->scop->tagger);
@@ -1480,19 +1441,10 @@ static isl_bool io_group_carried_by_array_loops(
                                                    isl_union_set_copy(domain));
 
   prefix = isl_union_map_preimage_domain_union_pw_multi_aff(prefix, tagger);
-  //#ifdef _DEBUG
-  //  DBGUMAP(stdout, prefix, isl_union_map_get_ctx(prefix))
-  //#endif
   identity_sched = isl_union_map_apply_range(
       prefix, isl_union_map_reverse(isl_union_map_copy(prefix)));
-  //#ifdef _DEBUG
-  //  DBGUMAP(stdout, identity_sched, isl_union_map_get_ctx(identity_sched))
-  //#endif
   identity_sched = isl_union_map_intersect(
       identity_sched, isl_union_map_copy(prog->scop->tagged_dep_flow));
-  //#ifdef _DEBUG
-  //  DBGUMAP(stdout, identity_sched, kernel->ctx);
-  //#endif
   empty = isl_union_map_is_empty(identity_sched);
 
   external = isl_union_map_copy(prog->scop->tagged_dep_flow);
@@ -1509,9 +1461,6 @@ static isl_bool io_group_carried_by_array_loops(
   external = isl_union_map_intersect_params(external,
                                             isl_set_copy(prog->scop->context));
   external = isl_union_map_subtract(external, identity_sched);
-  ///#ifdef _DEBUG
-  ///  DBGUMAP(stdout, external, kernel->ctx);
-  ///#endif
 
   if (read) {
     tag_set = isl_union_map_range(external);
@@ -1638,12 +1587,6 @@ isl_bool is_io_module_valid(__isl_keep isl_schedule_node *node,
       return isl_bool_false;
   }
 
-  //#ifdef _DEBUG
-  //  if (!strcmp(group->array->name, "C") && read) {
-  //    DBGSCHDNODE(stdout, node, kernel->ctx);
-  //  }
-  //#endif
-
   /* Internal group */
   if (io_group_carried_by_array_loops(node, kernel, group, read)) {
     if (group->io_type == AUTOSA_INT_IO &&
@@ -1697,11 +1640,6 @@ static isl_stat compute_io_group_schedule(struct autosa_kernel *kernel,
   int space_dim;
   isl_schedule *schedule;
 
-  //#ifdef _DEBUG
-  //  if (!strcmp(group->array->name, "U_tmp"))
-  //    printf("here\n");
-  //#endif
-
   /* Sink to the space band */
   schedule = isl_schedule_dup(kernel->schedule);
   node = isl_schedule_get_root(schedule);
@@ -1733,7 +1671,6 @@ static isl_stat compute_io_group_schedule(struct autosa_kernel *kernel,
     isl_mat *mat;
 
     /* Perform space-time transformation on the current band. */
-    // if (i == space_dim - 1 && group->io_type == AUTOSA_EXT_IO)
     if (i == space_dim - 1) {
       dir = isl_vec_dup(group->dir);
     } else {
@@ -1741,9 +1678,6 @@ static isl_stat compute_io_group_schedule(struct autosa_kernel *kernel,
       dir = isl_vec_zero(ctx, i + 1);
       dir = isl_vec_set_element_si(dir, 0, 1);
     }
-    //#ifdef _DEBUG
-    //    DBGVEC(stdout, dir, isl_schedule_node_get_ctx(node));
-    //#endif
     node = io_cluster(node, dir, &io_trans_mat_i, &io_trans_ma_i);
     isl_vec_free(dir);
 
@@ -1915,14 +1849,6 @@ static isl_stat compute_io_group_schedule(struct autosa_kernel *kernel,
   isl_schedule_free(sched);
   isl_schedule_node_free(node);
 
-  //#ifdef _DEBUG
-  //  if (!strcmp(group->array->name, "U_tmp") && group->nr == 1) {
-  //    //printf("print here\n");
-  //    //print_code(gen, group->io_L1_schedule, "U_tmp_1_tmp_code.c");
-  //    DBGSCHD(stdout, group->io_L1_schedule, ctx);
-  //  }
-  //#endif
-
   return isl_stat_ok;
 }
 
@@ -1936,10 +1862,6 @@ static __isl_give isl_map *local_access_io_at_node(
   sched = prefix_with_equalities(node);
   // TODO: fix the contraction
   contraction = isl_schedule_node_get_subtree_contraction(node);
-  /* #ifdef _DEBUG
-  isl_printer *pd = isl_printer_to_file(isl_schedule_node_get_ctx(node),
-stdout); pd = isl_printer_print_union_pw_multi_aff(pd, contraction); pd =
-isl_printer_end_line(pd); isl_printer_free(pd); #endif */
 
   sched = expand(sched, contraction);
   local = isl_union_map_apply_domain(local, sched);
@@ -2780,10 +2702,6 @@ static __isl_give isl_schedule_node *update_int_io_L1_depth(
   }
   isl_union_set_free(domain);
 
-  //#ifdef _DEBUG
-  //  DBGSCHDNODE(stdout, node, isl_schedule_node_get_ctx(node));
-  //#endif
-
   n = isl_schedule_node_band_n_member(node);
   /* Examine if the dependences of the current I/O group are carreid by the
    * current band. */
@@ -2807,9 +2725,6 @@ static __isl_give isl_schedule_node *update_int_io_L1_depth(
         if (io_info->io_type == group->io_type &&
             !isl_vec_cmp(io_info->dir, group->dir)) {
           if (is_dep_carried_by_node(io_info->dep->isl_dep, node_tmp)) {
-            ///* Insert the I/O buffer below the current node */
-            // insert_node = isl_schedule_node_copy(node_tmp);
-            // insert_node = isl_schedule_node_child(insert_node, 0);
             is_carried = 1;
             break;
           }
@@ -2820,17 +2735,12 @@ static __isl_give isl_schedule_node *update_int_io_L1_depth(
 
     if (is_carried) {
       insert_node = isl_schedule_node_copy(node_tmp);
-      // insert_node = isl_schedule_node_child(insert_node, 0);
       isl_schedule_node_free(node_tmp);
       break;
     }
 
     isl_schedule_node_free(node_tmp);
   }
-
-  //#ifdef _DEBUG
-  //  DBGSCHDNODE(stdout, insert_node, isl_schedule_node_get_ctx(insert_node));
-  //#endif
 
   if (insert_node) {
     data->depth = isl_schedule_node_get_schedule_depth(insert_node);
@@ -2849,11 +2759,6 @@ static __isl_give isl_schedule_node *update_int_io_L1_buffer(
   isl_union_set *domain;
   struct autosa_array_ref_group *group;
 
-  ///* Examine if the node is under the SIMD mark */
-  // under_simd = is_node_under_simd(node);
-  // if (under_simd)
-  //  return node;
-
   if (data->tile_computed) return node;
 
   if (isl_schedule_node_get_type(node) != isl_schedule_node_band) return node;
@@ -2869,10 +2774,6 @@ static __isl_give isl_schedule_node *update_int_io_L1_buffer(
     /* Check the child node */
     node = isl_schedule_node_child(node, 0);
   }
-
-  //#ifdef _DEBUG
-  //  DBGSCHDNODE(stdout, node, isl_schedule_node_get_ctx(node));
-  //#endif
 
   if (isl_schedule_node_get_schedule_depth(node) == data->depth) {
     /* Find the L1 buffer */
@@ -2895,107 +2796,6 @@ static __isl_give isl_schedule_node *update_int_io_L1_buffer(
 
   return node;
 }
-
-// static __isl_give isl_schedule_node *update_int_io_L1_buffer(__isl_take
-// isl_schedule_node *node, void *user)
-//{
-//  struct update_int_io_L1_buffer_data *data = (struct
-//  update_int_io_L1_buffer_data *)user; int under_simd, n; struct
-//  autosa_array_ref_group *group; isl_schedule_node *insert_node = NULL;
-//  isl_union_set *domain;
-//  int is_carried = 0;
-//
-//  if (data->inserted)
-//    return node;
-//  /* Examine if the node is under the SIMD mark */
-//  under_simd = is_node_under_simd(node);
-//  if (under_simd)
-//    return node;
-//
-//  if (isl_schedule_node_get_type(node) != isl_schedule_node_band)
-//    return node;
-//
-//  domain = isl_schedule_node_get_domain(node);
-//  if (isl_union_set_is_empty(domain)) {
-//    isl_union_set_free(domain);
-//    return node;
-//  }
-//  isl_union_set_free(domain);
-//
-//  n = isl_schedule_node_band_n_member(node);
-//  /* Examine if the dependences of the current I/O group are carreid by the
-//  current band. */ group = data->group; for (int i = 0; i < n; i++) {
-//    isl_schedule_node *node_tmp = isl_schedule_node_copy(node);
-//    if (n > 1) {
-//      if (i > 0) {
-//        node_tmp = isl_schedule_node_band_split(node_tmp, i);
-//        node_tmp = isl_schedule_node_child(node_tmp, 0);
-//      }
-//      if (n - i - 1 > 0) {
-//        node_tmp = isl_schedule_node_band_split(node_tmp, 1);
-//      }
-//    }
-//
-//    for (int j = 0; j < group->n_ref; j++) {
-//      struct autosa_stmt_access *ref = group->refs[j];
-//      for (int k = 0; k < ref->n_io_info; k++) {
-//        struct autosa_io_info *io_info = ref->io_info[k];
-//        if (io_info->io_type == group->io_type &&
-//            !isl_vec_cmp(io_info->dir, group->dir)) {
-//          if (is_dep_carried_by_node(io_info->dep->isl_dep, node_tmp)) {
-//            ///* Insert the I/O buffer below the current node */
-//            //insert_node = isl_schedule_node_copy(node_tmp);
-//            //insert_node = isl_schedule_node_child(insert_node, 0);
-//            is_carried = 1;
-//            break;
-//          }
-//        }
-//      }
-//      if (is_carried)
-//        break;
-//    }
-//
-//    if (!is_carried) {
-//      insert_node = isl_schedule_node_copy(node_tmp);
-//      insert_node = isl_schedule_node_child(insert_node, 0);
-//      break;
-//    }
-//
-//    isl_schedule_node_free(node_tmp);
-//  }
-//
-//  if (insert_node) {
-////#ifdef _DEBUG
-////    DBGSCHDNODE(stdout, insert_node,
-///isl_schedule_node_get_ctx(insert_node));
-////#endif
-//
-//    /* Find the L1 buffer */
-//    struct autosa_io_buffer *cur_buffer;
-//    for (int i = 1; i < group->io_level; i++) {
-//      cur_buffer = group->io_buffers[i - 1];
-//      if (cur_buffer->tile)
-//        break;
-//    }
-//    autosa_array_tile_free(cur_buffer->tile);
-//    if (group->group_type == AUTOSA_DRAIN_GROUP)
-//      compute_group_bounds_drain_at_node(data->kernel, group, insert_node,
-//      cur_buffer);
-//    else if (group->group_type == AUTOSA_IO_GROUP)
-//      compute_group_bounds_io_at_node(data->kernel, group, insert_node,
-//      cur_buffer);
-//    autosa_array_ref_group_compute_tiling(cur_buffer->tile, group);
-//
-////#ifdef _DEBUG
-////    printf("%d\n", cur_buffer->tile->depth);
-////#endif
-//
-//    isl_schedule_node_free(insert_node);
-//    data->inserted = true;
-//  }
-//
-//  return node;
-//}
 
 static __isl_give isl_schedule_node *insert_io_L1_mark(
     __isl_take isl_schedule_node *node, void *user) {
@@ -3029,28 +2829,15 @@ static __isl_give isl_schedule *generate_io_L1_lower_schedule(
   node = isl_schedule_get_root(new_schedule);
   isl_schedule_free(new_schedule);
 
-  //#ifdef _DEBUG
-  //  DBGSCHDNODE(stdout, node, isl_schedule_node_get_ctx(node));
-  //#endif
-
   node = autosa_tree_move_down_to_io_mark(node, kernel->core, 1);
   node = isl_schedule_node_delete(node);
   node = isl_schedule_node_parent(node);
-  //#ifdef _DEBUG
-  //  DBGSCHDNODE(stdout, node, isl_schedule_node_get_ctx(node));
-  //#endif
   /* Sink the L1 band to (depth - 1) */
   node = autosa_node_sink_to_depth(node, depth - 1);
-  //#ifdef _DEBUG
-  //  DBGSCHDNODE(stdout, node, isl_schedule_node_get_ctx(node));
-  //#endif
   /* Insert the io_L1 mark */
   int depth_inc = depth - 1;
   node = isl_schedule_node_map_descendant_bottom_up(node, &insert_io_L1_mark,
                                                     &depth_inc);
-  //#ifdef _DEBUG
-  //  DBGSCHDNODE(stdout, node, isl_schedule_node_get_ctx(node));
-  //#endif
 
   new_schedule = isl_schedule_node_get_schedule(node);
   isl_schedule_node_free(node);
@@ -3082,10 +2869,6 @@ static isl_stat lower_int_io_L1_buffer(struct autosa_kernel *kernel,
   /* This function only works for copy-in modules */
   node = insert_io_group_domain(node, group, kernel, gen, 1);
 
-  //#ifdef _DEBUG
-  //  DBGSCHDNODE(stdout, node, gen->ctx);
-  //  //printf("%s\n", group->array->name);
-  //#endif
   /* Update the depth to insert the buffer */
   node = isl_schedule_node_map_descendant_bottom_up(
       node, &update_int_io_L1_depth, &data);
@@ -3190,8 +2973,6 @@ static isl_stat hoist_L2_io_buffer(struct autosa_kernel *kernel,
     node = autosa_tree_move_down_to_io_mark(node, kernel->core, io_level);
     node = insert_io_module_ids(gen, kernel, node, group->space_dim, io_level);
     node = autosa_tree_move_up_to_array(node);
-
-    // node = autosa_tree_move_down_to_array(node, kernel->core);
     node = isl_schedule_node_parent(node);
     n = isl_schedule_node_band_n_member(node);
     for (i = n - 1; i > 0; i--) {
@@ -3303,17 +3084,6 @@ static int group_array_references_io(struct autosa_kernel *kernel,
   n = 0;
   for (i = 0; i < local->array->n_ref; i++) {
     struct autosa_stmt_access *ref = local->array->refs[i];
-    //#ifdef _DEBUG
-    //    if (!strcmp(local->array->name, "U_tmp")) {
-    //      DBGMAP(stdout, ref->access, ctx);
-    //      printf("n_io_info: %d\n", ref->n_io_info);
-    //      for (int j = 0; j < ref->n_io_info; j++) {
-    //        struct autosa_io_info *io_info = ref->io_info[j];
-    //        DBGBMAP(stdout, io_info->dep->isl_dep, ctx);
-    //        printf("%d\n", io_info->io_type);
-    //      }
-    //    }
-    //#endif
     for (j = 0; j < ref->n_io_info; j++) {
       struct autosa_io_info *io_info = ref->io_info[j];
       if (io_info->dep->type == AUTOSA_DEP_RAW ||
@@ -3591,8 +3361,6 @@ static isl_stat autosa_io_buffer_allocate(struct autosa_kernel *kernel,
         lower_int_io_L1_buffer(kernel, local->io_groups[j], gen);
         /* Enable the second-level buffer for this array */
         insert_L2_io_buffer(kernel, local->io_groups[j], gen);
-        /* Seek the opportunity to hoist up the L2 I/O buffers. */
-        // hoist_L2_io_buffer(kernel, local->io_groups[j], gen, data);
       }
     }
     if (local->drain_group) {
@@ -4244,15 +4012,9 @@ __isl_give isl_union_map *remove_local_accesses_flow(
   if (read) {
     tag_set = isl_union_map_range(external);
     external = wrapped_reference_to_access(tag_set, tagged);
-    //    /* Temporarily commented out, we don't consider live-in so far. */
-    //		external = isl_union_map_union(external,
-    //				isl_union_map_copy(prog->scop->live_in));
   } else {
     tag_set = isl_union_map_domain(external);
     external = wrapped_reference_to_access(tag_set, tagged);
-    //    /* Temporarily commented out, we don't consider live-out so far. */
-    //		external = isl_union_map_union(external,
-    //				isl_union_map_copy(prog->scop->live_out));
   }
 
   if (empty < 0)

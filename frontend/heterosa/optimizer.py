@@ -398,10 +398,6 @@ def save_design_files(config):
     with open(design_path + '/design.info', 'w') as f:
         f.write(generate_autosa_cmd_str(config['cmds']))
 
-    # if config['mode'] == 'search':
-        # Store the estimated latency and resource info
-        # TODO
-
     # Copy the files
     ret = execute_sys_cmd(
         f'cp -r {config["work_dir"]}/output {design_path}/',
@@ -443,14 +439,11 @@ def explore_design(config):
         config['monitor']['last_design'] = cur_design
         design_dir = f'{config["work_dir"]}/output'
         if config['setting']['search']['metric'] == 'latency':
-            #start_time = time.perf_counter()
             # Predict the latency
             latency_info = lat_model.extract_latency_info(design_dir)
             latency = lat_model.predict_design_latency(
                 latency_info, config['setting']['search']['cycle_period'],
                 config['search_results']['opt']['latency'])
-            #runtime = time.perf_counter() - start_time
-            #print(f'resource runtime: {runtime}')
             if config['search_results']['opt']['found']:
                 if latency > config['search_results']['opt']['latency']:
                     clear_design_files(config)
@@ -462,7 +455,6 @@ def explore_design(config):
             raise NotImplementedError(f'DSE for power is not supported.')
 
         # Predict the resource usage
-        #start_time = time.perf_counter()
         design_info = res_model.extract_design_info(design_dir, 0)
         modules, fifos, df = res_model.convert_design_infos_to_df([design_info])
         kernel_id = design_info['kernel_id']
@@ -479,8 +471,6 @@ def explore_design(config):
             config['setting']['search']['resource_target']):
             clear_design_files(config)
             return
-        #runtime = time.perf_counter() - start_time
-        #print(f'resource runtime: {runtime}')
 
         # Compare and update the search results
         config['search_results'] = update_search_results(
@@ -599,11 +589,7 @@ def explore_simd_vectorization(config):
                     config['sa_sizes'].append(
                         f'kernel[]->simd{str(loop).replace(" ", "")}')
                     config['cmds'][3] = generate_sa_sizes_cmd(config['sa_sizes'])
-
-                    #start_time = time.perf_counter()
                     ret = execute_autosa_cmd(config)
-                    #run_time = time.perf_counter() - start_time
-                    #print(f'runtime: {run_time}')
 
                     if ret != 0:
                         config['logger'].error(f'CMD failed with error code {ret}')
@@ -666,9 +652,6 @@ def explore_latency_hiding(config):
             return
         else:
             for loop in loops_pool:
-                # Hack: For GEMM4
-                #loop[-1] = 1
-
                 sa_sizes = config['sa_sizes'].copy()
                 config['sa_sizes'].append(
                     f'kernel[]->latency{str(loop).replace(" ", "")}')
@@ -1090,10 +1073,6 @@ def train_xilinx(config):
     # Train the resource models
     config['logger'].info('Train resource models...')
     train_resource_models_xilinx(config)
-
-    ## Train the latency models
-    # config['logger'].info('Train latency models...')
-    # train_latency_models_xilinx(config) # TODO
 
 def get_default_pruning_policy(mode):
     """ Return the default search pruning policy.

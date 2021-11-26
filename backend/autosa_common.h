@@ -24,6 +24,7 @@
 #include <utility>
 #include <vector>
 
+#include "autosa_schedule_tree.h"
 #include "ppcg.h"
 #include "schedule.h"
 #include "util.h"
@@ -985,100 +986,18 @@ struct hls_info {
   isl_ctx *ctx;
 };
 
-/* Band node */
-__isl_give isl_multi_val *construct_band_tile_sizes(
-    __isl_keep isl_schedule_node *node, int *tile_size);
-struct autosa_node_band_prop *extract_node_band_prop(
-    __isl_keep isl_schedule_node *node);
-struct autosa_node_band_prop *autosa_node_band_prop_free(
-    __isl_take struct autosa_node_band_prop *prop);
-isl_bool is_permutable_node(__isl_keep isl_schedule_node *node);
-isl_bool has_single_permutable_node(__isl_keep isl_schedule *schedule);
-isl_bool is_dep_uniform_at_node(__isl_keep isl_schedule_node *node, void *user);
-isl_bool is_dep_uniform(__isl_keep isl_basic_map *bmap, void *user);
-isl_bool is_dep_uniform_wrap(__isl_keep isl_map *map, void *user);
-isl_bool uniform_dep_check(__isl_keep isl_schedule *schedule,
-                           struct ppcg_scop *scop);
-__isl_give isl_vec *get_dep_dis_at_schedule(__isl_keep isl_basic_map *dep,
-                                            __isl_keep isl_schedule *schedule);
-__isl_give isl_vec *get_dep_dis_at_node(__isl_keep isl_basic_map *dep,
-                                        __isl_keep isl_schedule_node *band);
-//__isl_give isl_schedule *loop_interchange_at_node(
-//    __isl_take isl_schedule_node *node, isl_size level1, isl_size level2);
-__isl_give isl_schedule_node *loop_interchange_at_node(
-    __isl_take isl_schedule_node *node, isl_size level1, isl_size level2);
-__isl_give isl_schedule_node *get_outermost_permutable_node(
-    __isl_keep isl_schedule *schedule);
-__isl_give isl_schedule_node *get_innermost_permutable_node(
-    __isl_keep isl_schedule *schedule);
-__isl_give isl_schedule_node *tile_band(__isl_take isl_schedule_node *node,
-                                        __isl_take isl_multi_val *sizes);
-__isl_give isl_schedule_node *autosa_tile_band(
-    __isl_take isl_schedule_node *node, __isl_keep int *sizes);
-__isl_give isl_schedule_node *autosa_node_band_tile_loop(
-    __isl_take isl_schedule_node *node, int tile_size, int pos);
-__isl_give isl_schedule_node *clear_pe_opt_prop(
-    __isl_take isl_schedule_node *node, void *user);
-__isl_give isl_schedule_node *restore_node_band_prop(
-    __isl_take isl_schedule_node *node,
-    __isl_take struct autosa_node_band_prop *prop);
-__isl_give isl_schedule_node *autosa_node_interchange(
-    __isl_take isl_schedule_node *node);
-__isl_give isl_schedule_node *autosa_node_interchange_up(
-    __isl_take isl_schedule_node *node);
-isl_bool no_permutable_node(__isl_keep isl_schedule_node *node, void *user);
-isl_bool all_parallel_node(__isl_keep isl_schedule_node *node, void *user);
-isl_bool isl_schedule_node_is_io_mark(__isl_keep isl_schedule_node *node,
-                                      int io_level);
-int is_node_under_simd(__isl_keep isl_schedule_node *node);
-int is_node_under_latency(__isl_keep isl_schedule_node *node);
-int *extract_band_upper_bounds(__isl_keep isl_schedule_node *node);
-__isl_give isl_union_set *set_schedule_eq(__isl_keep isl_schedule_node *node,
-                                          __isl_keep isl_id_list *names);
-__isl_give isl_union_set *set_schedule_neq(__isl_keep isl_schedule_node *node,
-                                           __isl_keep isl_id_list *names);
-isl_bool is_flow_dep_carried_by_array_part_loops(
-    __isl_keep isl_schedule *schedule, struct autosa_array_ref_group *group,
-    struct autosa_kernel *kernel);
-__isl_give isl_schedule_node *reorder_band_by_dep_dis(
-    __isl_take isl_schedule_node *node);
-__isl_give isl_schedule_node *sched_pos_setup(
-    __isl_take isl_schedule_node *node);
-int get_band_single_schedule_val(__isl_keep isl_schedule_node *node);
-int get_last_sched_dim_val(__isl_keep isl_schedule_node *node);
-__isl_give isl_schedule_node *autosa_atomic_ancestors(
-    __isl_take isl_schedule_node *node);
-int is_dep_carried_by_node(__isl_keep isl_basic_map *dep,
-                           __isl_keep isl_schedule_node *node);
-__isl_give isl_schedule_node *autosa_node_sink_to_depth(
-    __isl_take isl_schedule_node *node, int depth);
-__isl_give isl_schedule_node *autosa_node_sink_to_mark(
-    __isl_take isl_schedule_node *node, const char *name);
-int is_marked(__isl_keep isl_schedule_node *node, const char *name);
-
-/* Schedule */
-__isl_give isl_schedule *compute_schedule(struct autosa_gen *gen);
-__isl_give isl_schedule *get_schedule(struct autosa_gen *gen);
-__isl_give isl_schedule *merge_outer_bands(__isl_give isl_schedule *schedule,
-                                           struct autosa_gen *gen);
-
 /* AutoSA kernel */
 void *autosa_kernel_free(struct autosa_kernel *kernel);
 struct autosa_kernel *autosa_kernel_copy(struct autosa_kernel *kernel);
 struct autosa_kernel *autosa_kernel_from_schedule(
     __isl_take isl_schedule *schedule);
-struct autosa_kernel *autosa_kernel_alloc(isl_ctx *ctx, struct ppcg_scop *scop);
 
 /* AutoSA access */
 isl_bool access_is_stride_zero(__isl_keep isl_map *access, int pos);
 isl_bool access_is_stride_one(__isl_keep isl_map *access, int pos);
-void *autosa_acc_free(struct autosa_acc *acc);
 
 /* AutoSA dep */
 void *autosa_dep_free(__isl_take struct autosa_dep *dep);
-
-/* AutoSA iterator */
-struct autosa_iter *autosa_iter_free(struct autosa_iter *iter);
 
 /* AutoSA array */
 isl_stat collect_array_info(struct autosa_prog *prog);
@@ -1087,12 +1006,9 @@ int autosa_array_is_scalar(struct autosa_array_info *array);
 int autosa_kernel_requires_array_argument(struct autosa_kernel *kernel, int i);
 struct autosa_array_ref_group *autosa_array_ref_group_free(
     struct autosa_array_ref_group *group);
-struct autosa_array_ref_group *autosa_array_ref_group_init(
-    struct autosa_array_ref_group *group);
 struct autosa_array_tile *autosa_array_tile_free(
     struct autosa_array_tile *tile);
 struct autosa_array_tile *autosa_array_tile_create(isl_ctx *ctx, int n_index);
-__isl_give isl_val *autosa_array_tile_size(struct autosa_array_tile *tile);
 
 /* AutoSA statement */
 struct autosa_stmt *extract_stmts(isl_ctx *ctx, struct ppcg_scop *scop,
@@ -1132,11 +1048,8 @@ int *read_latency_tile_sizes(struct autosa_kernel *kernel, int tile_len);
 int *read_default_latency_tile_sizes(struct autosa_kernel *kernel,
                                      int tile_len);
 int *read_simd_tile_sizes(struct autosa_kernel *kernel, int tile_len);
-int *read_default_simd_tile_sizes(struct autosa_kernel *kernel, int tile_len);
 int read_space_time_kernel_id(__isl_keep isl_union_map *sizes);
 int *read_array_part_L2_tile_sizes(struct autosa_kernel *kernel, int tile_len);
-int *read_default_array_part_L2_tile_sizes(struct autosa_kernel *kernel,
-                                           int tile_len);
 int *read_data_pack_sizes(__isl_keep isl_union_map *sizes, int tile_len);
 
 /* AutoSA latency and resource estimation */

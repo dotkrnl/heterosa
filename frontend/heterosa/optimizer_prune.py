@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
+
 def array_part_loops_pruning(loops, config):
-    """ Apply pruning on array partitioning candidate loops.
+    """Apply pruning on array partitioning candidate loops.
 
     At present, we apply the following heuristics:
-    - The product of all array_part loops should be greater than the total PE number  
+    - The product of all array_part loops should be greater than the total PE number
     - TODO: Prune based on off-chip traffic
 
     Parameters
@@ -16,8 +17,7 @@ def array_part_loops_pruning(loops, config):
     """
     pruned_loops = []
 
-    PE_lb = config['setting'][config['mode']
-                              ]['pruning']['array_part']['PE_num'][0]
+    PE_lb = config["setting"][config["mode"]]["pruning"]["array_part"]["PE_num"][0]
     for loop in loops:
         if PE_lb == -1:
             pruned_loops.append(loop)
@@ -34,7 +34,7 @@ def array_part_loops_pruning(loops, config):
 
 
 def array_part_L2_loops_pruning(loops, config):
-    """ Apply pruning on L2 array partitioning candidate loops.
+    """Apply pruning on L2 array partitioning candidate loops.
 
     At present, we wpply the following heuristics:
     - We only apply L2 array partitioning on parallel loops to save off-chip communication.
@@ -46,16 +46,16 @@ def array_part_L2_loops_pruning(loops, config):
     loops: list
         A list of candidate loops
     config:
-        Global configuration  
+        Global configuration
     """
     pruned_loops = []
-    tuning = config['tuning']
+    tuning = config["tuning"]
     loop_stop = 0
-    for c in tuning['array_part_L2']['coincident']:
+    for c in tuning["array_part_L2"]["coincident"]:
         if not c:
             break
         loop_stop += 1
-    ubs = tuning['array_part_L2']['tilable_loops'][loop_stop:]
+    ubs = tuning["array_part_L2"]["tilable_loops"][loop_stop:]
     for loop in loops:
         # Examine [loop_stop:-1], only leave those that equal the upper bound
         loop_cut = loop[loop_stop:]
@@ -67,10 +67,10 @@ def array_part_L2_loops_pruning(loops, config):
 
 
 def latency_hiding_loops_pruning(loops, config):
-    """ Apply pruning on latency hiding candidate loops.
+    """Apply pruning on latency hiding candidate loops.
 
     At present, we apply the following heuristics:
-    - We compute the latency hiding register sizes and prune it when it is 
+    - We compute the latency hiding register sizes and prune it when it is
       greater or less than the pre-set threshold.
 
     Parameters
@@ -81,10 +81,12 @@ def latency_hiding_loops_pruning(loops, config):
         Global configuration
     """
     pruned_loops = []
-    reg_size_lb = config['setting'][config['mode']
-                                    ]['pruning']['latency_hiding']['reg_size'][0]
-    reg_size_ub = config['setting'][config['mode']
-                                    ]['pruning']['latency_hiding']['reg_size'][1]
+    reg_size_lb = config["setting"][config["mode"]]["pruning"]["latency_hiding"][
+        "reg_size"
+    ][0]
+    reg_size_ub = config["setting"][config["mode"]]["pruning"]["latency_hiding"][
+        "reg_size"
+    ][1]
     for loop in loops:
         size = 1
         for l in loop:
@@ -101,7 +103,7 @@ def latency_hiding_loops_pruning(loops, config):
 
 
 def SIMD_vectorization_PE_pruning(config):
-    """ Apply pruning based on the PE structures at the SIMD vectorization stage.
+    """Apply pruning based on the PE structures at the SIMD vectorization stage.
 
     At present, we apply the following heuristics:
     - We restrain the PE number within certain range
@@ -117,14 +119,16 @@ def SIMD_vectorization_PE_pruning(config):
     ret: boolean
         If this configuration is to be pruned.
     """
-    tuning = config['tuning']
+    tuning = config["tuning"]
     ret = False
-    PE_num_lb = config['setting'][config['mode']
-                                  ]['pruning']['SIMD_vectorization']['PE_num'][0]
-    PE_num_ub = config['setting'][config['mode']
-                                  ]['pruning']['SIMD_vectorization']['PE_num'][1]
+    PE_num_lb = config["setting"][config["mode"]]["pruning"]["SIMD_vectorization"][
+        "PE_num"
+    ][0]
+    PE_num_ub = config["setting"][config["mode"]]["pruning"]["SIMD_vectorization"][
+        "PE_num"
+    ][1]
     n_pe = 1
-    for dim in tuning['simd']['sa_dims']:
+    for dim in tuning["simd"]["sa_dims"]:
         n_pe *= int(dim)
     if PE_num_lb != -1:
         if n_pe < PE_num_lb:
@@ -133,23 +137,33 @@ def SIMD_vectorization_PE_pruning(config):
         if n_pe > PE_num_ub:
             return True
 
-    sa_dims = tuning['simd']['sa_dims']
-    if len(tuning['simd']['sa_dims']) > 1:
+    sa_dims = tuning["simd"]["sa_dims"]
+    if len(tuning["simd"]["sa_dims"]) > 1:
         sa_dims.sort(reverse=True)
         pe_ratio = sa_dims[0] / sa_dims[1]
-        if config['setting'][config['mode']]['pruning']['SIMD_vectorization']['PE_ratio'] != -1:
-            if pe_ratio > config['setting'][config['mode']]['pruning']['SIMD_vectorization']['PE_ratio']:
+        if (
+            config["setting"][config["mode"]]["pruning"]["SIMD_vectorization"][
+                "PE_ratio"
+            ]
+            != -1
+        ):
+            if (
+                pe_ratio
+                > config["setting"][config["mode"]]["pruning"]["SIMD_vectorization"][
+                    "PE_ratio"
+                ]
+            ):
                 return True
 
     return ret
 
 
 def reorder_simd_loops(loops):
-    """ Reorder the simd loops for pruning.
+    """Reorder the simd loops for pruning.
 
-    The input loops contains a list of candidate loops. 
+    The input loops contains a list of candidate loops.
     For each candidate loop, it is in the format of [1, 1, X].
-    We will sort the loops based on the non-one element in descending order.    
+    We will sort the loops based on the non-one element in descending order.
 
     Parameters
     ----------
@@ -175,28 +189,28 @@ def reorder_simd_loops(loops):
 
 
 def SIMD_vectorization_latency_pruning(config):
-    """ Perform latency-based pruning at the SIMD vectorization stage.
+    """Perform latency-based pruning at the SIMD vectorization stage.
 
     We have already reordered the SIMD candidate loops in descending order.
     Therefore, if the last design evaluated is slower than the opt design found
-    so far, there is no chance for the rest of candidates which has a smaller 
-    SIMD factor to beat the opt design. 
+    so far, there is no chance for the rest of candidates which has a smaller
+    SIMD factor to beat the opt design.
     We will stop exploration for these loops and return.
-    Otherwise, if the resource usage is legal, we have already found a design that 
-    achieves the least latency in the current group. For the other designs with 
+    Otherwise, if the resource usage is legal, we have already found a design that
+    achieves the least latency in the current group. For the other designs with
     a smaller SIMD factor, their latency is no less than the current design.
     We will stop exploration for these loops and return.
-    However, there a chance that the designs with a smaller SIMD factor acheives 
-    the same latency but with less resource usage (for a comm bound design). 
+    However, there a chance that the designs with a smaller SIMD factor acheives
+    the same latency but with less resource usage (for a comm bound design).
     At present, we ignore such cases.
 
     """
-    last_design = config['monitor']['last_design']
-    if last_design['latency'] == -1:
+    last_design = config["monitor"]["last_design"]
+    if last_design["latency"] == -1:
         # The current design is already slower than opt., stop exploration.
         return True
     else:
         # The current design is resource-legal, stop exploration.
-        if not last_design['resource']:
+        if not last_design["resource"]:
             return True
     return False

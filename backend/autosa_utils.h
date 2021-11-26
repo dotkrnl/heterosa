@@ -21,12 +21,7 @@ __isl_give isl_union_set *isl_multi_union_pw_aff_nonneg_union_set(
     __isl_take isl_multi_union_pw_aff *mupa);
 __isl_give isl_union_set *isl_union_pw_aff_nonneg_union_set(
     __isl_take isl_union_pw_aff *upa);
-__isl_give isl_union_set *isl_multi_union_pw_aff_non_zero_union_set(
-    __isl_take isl_multi_union_pw_aff *mupa);
-__isl_give isl_union_set *isl_union_pw_aff_non_zero_union_set(
-    __isl_take isl_union_pw_aff *upa);
 
-void print_mat(FILE *fp, __isl_keep isl_mat *mat);
 int isl_vec_cmp(__isl_keep isl_vec *vec1, __isl_keep isl_vec *vec2);
 char *concat(isl_ctx *ctx, const char *a, const char *b);
 bool isl_vec_is_zero(__isl_keep isl_vec *vec);
@@ -42,7 +37,6 @@ int convert_pwqpoly_to_int(__isl_keep isl_pw_qpolynomial *to_convert);
 char *isl_vec_to_str(__isl_keep isl_vec *vec);
 
 long isl_val_get_num(__isl_take isl_val *val);
-long compute_set_min(__isl_keep isl_set *set, int dim);
 long compute_set_max(__isl_keep isl_set *set, int dim);
 
 #endif

@@ -288,11 +288,6 @@ isl_bool access_is_stride_one(__isl_keep isl_map *access, int pos) {
   space = isl_map_get_space(access);
   space = isl_space_domain(space);
   next_iter = next(space, isl_map_dim(access, isl_dim_in) - 1);
-  //#ifdef _DEBUG
-  //  isl_printer *pd = isl_printer_to_file(isl_map_get_ctx(access), stdout);
-  //  pd = isl_printer_print_map(pd, next_iter);
-  //  pd = isl_printer_end_line(pd);
-  //#endif
   map = isl_map_apply_domain(next_iter, isl_map_copy(access));
   map = isl_map_apply_range(map, isl_map_copy(access));
   if (isl_map_is_empty(map)) {
@@ -301,13 +296,6 @@ isl_bool access_is_stride_one(__isl_keep isl_map *access, int pos) {
     return isl_bool_false;
   }
   coalesced = isl_map_is_subset(map, next_element);
-  //#ifdef _DEBUG
-  //  pd = isl_printer_print_map(pd, map);
-  //  pd = isl_printer_end_line(pd);
-  //  pd = isl_printer_print_map(pd, next_element);
-  //  pd = isl_printer_end_line(pd);
-  //  isl_printer_free(pd);
-  //#endif
 
   isl_map_free(next_element);
   isl_map_free(map);
@@ -1503,10 +1491,8 @@ __isl_give isl_set *extract_sa_sizes(__isl_keep isl_union_map *sizes,
 
   space = isl_union_map_get_space(sizes);
   space = isl_space_set_from_params(space);
-  // space = isl_space_add_dims(space, isl_dim_set, 1);
   space = isl_space_set_tuple_name(space, isl_dim_set, "kernel");
   dom = isl_set_universe(space);
-  // dom = isl_set_fix_si(dom, isl_dim_set, 0, id);
 
   local_sizes = isl_union_set_apply(isl_union_set_from_set(dom),
                                     isl_union_map_copy(sizes));
@@ -1564,22 +1550,12 @@ static __isl_give isl_set *extract_config_sizes(__isl_keep isl_union_map *sizes,
 
   space = isl_union_map_get_space(sizes);
   space = isl_space_set_from_params(space);
-  // space = isl_space_add_dims(space, isl_dim_set, 1);
   space = isl_space_set_tuple_name(space, isl_dim_set, "kernel");
   dom = isl_set_universe(space);
-  //#ifdef _DEBUG
-  //  isl_printer *pd = isl_printer_to_file(isl_set_get_ctx(dom), stdout);
-  //  pd = isl_printer_print_set(pd, dom);
-  //  pd = isl_printer_end_line(pd);
-  //#endif
 
   local_sizes = isl_union_set_apply(isl_union_set_from_set(dom),
                                     isl_union_map_copy(sizes));
 
-  //#ifdef _DEBUG
-  //  pd = isl_printer_print_union_set(pd, local_sizes);
-  //  pd = isl_printer_end_line(pd);
-  //#endif
   isl_union_set_foreach_set(local_sizes, &extract_size_of_type, &data);
   isl_union_set_free(local_sizes);
   return data.res;
@@ -1685,16 +1661,6 @@ int *read_data_pack_sizes(__isl_keep isl_union_map *sizes, int tile_len) {
   if (!tile_size) return NULL;
 
   size = extract_config_sizes(sizes, "data_pack");
-  //#ifdef _DEBUG
-  //  isl_printer *pd = isl_printer_to_file(ctx, stdout);
-  //  pd = isl_printer_print_union_map(pd, sizes);
-  //  pd = isl_printer_end_line(pd);
-  //  if (!size)
-  //    printf("null\n");
-  //  pd = isl_printer_print_set(pd, size);
-  //  pd = isl_printer_end_line(pd);
-  //  isl_printer_free(pd);
-  //#endif
 
   if (isl_set_dim(size, isl_dim_set) < tile_len) {
     free(tile_size);
@@ -2185,12 +2151,6 @@ isl_stat sa_extract_loop_info(struct autosa_gen *gen,
   }
 
   /* Parse the loop structure of the default module */
-  //#ifdef _DEBUG
-  //  if (!module->device_tree) {
-  //    printf("non tree module_name: %s\n", module->name);
-  //    exit(0);
-  //  }
-  //#endif
   json_str =
       extract_loop_info_from_module(gen, module->device_tree, module->name,
                                     module->double_buffer, module->in, 1);
@@ -2304,48 +2264,6 @@ int extract_memory_type(struct autosa_hw_module *module,
   else
     bram_util = (float)var_size / 512;
 
-  // if (module->type == PE_MODULE) {
-  //  if (var->n_lane == 1 && var_size <= 32)
-  //    use_memory = 0;
-  //  else
-  //    use_memory = 2;
-  //} else if (module->type != PE_MODULE && module->level == 1) {
-  //  if (var->n_lane == 1 && var_size <= 32)
-  //    use_memory = 0;
-  //  else {
-  //    //use_memory = 2;
-  //    if (bram_util > 0.2)
-  //      use_memory = 2;
-  //    else
-  //      use_memory = 0;
-  //  }
-  //} else {
-  //  if (module->to_mem == 1) {
-  //    if (uram)
-  //      use_memory = 3;
-  //    else
-  //      use_memory = 2;
-  //  } else {
-  //    if (bram_util > 0.2)
-  //      use_memory = 2;
-  //    else
-  //      use_memory = 0;
-  //      //use_memory = 1;
-  //  }
-  //}
-
-  // if (module->type != PE_MODULE && module->to_mem == 1) {
-  //  if (uram)
-  //    use_memory = 3;
-  //  else
-  //    use_memory = 2;
-  //} else {
-  //  if (var->n_lane == 1 && var_size <= 64)
-  //    use_memory = 0;
-  //  else
-  //    use_memory = 2;
-  //}
-
   // Special strategy for GEMM 1D
   if (module->type != PE_MODULE && module->to_mem == 1) {
     if (uram)
@@ -2353,7 +2271,6 @@ int extract_memory_type(struct autosa_hw_module *module,
     else
       use_memory = 2;
   } else {
-    // if (module->type == DRAIN_MODULE && module->level == 1)
     if (module->type == IO_MODULE && module->level == 1)
       use_memory = 0;
     else {
@@ -2415,11 +2332,6 @@ static cJSON *extract_buffer_info_from_module(struct autosa_gen *gen,
     cJSON_AddStringToObject(buffer, "mem_type", "BRAM");
   else
     cJSON_AddStringToObject(buffer, "mem_type", "URAM");
-
-  ///* Array map */
-  // if (module->double_buffer) {
-  //  cJSON_AddStringToObject(buffer, "array_map", "horizontal");
-  //}
 
   return buffer;
 }
@@ -2544,7 +2456,6 @@ isl_stat sa_extract_design_info(struct autosa_gen *gen) {
   char *file_path;
 
   /* kernel id */
-  // DBGVAR(std::cout, gen->kernel->id);
   cJSON *kernel_id = cJSON_CreateNumber(gen->kernel->id);
   cJSON_AddItemToObject(design_info, "kernel_id", kernel_id);
 

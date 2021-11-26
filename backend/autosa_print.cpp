@@ -20,8 +20,6 @@ __isl_give isl_printer *autosa_array_info_print_call_argument(
   p = isl_printer_print_str(p, "buffer_");
   p = isl_printer_print_str(p, array->name);
   if (n_ref >= 0) {
-    // std::pair<int, int> ref_port_map =
-    // array->local_array->group_ref_mem_port_map[n_ref];
     auto ref_port_map = array->local_array->group_ref_mem_port_map.at(n_ref);
     p = isl_printer_print_str(p, "[");
     p = isl_printer_print_int(p, ref_port_map.second);
@@ -405,7 +403,6 @@ __isl_give isl_printer *print_kernel_header(__isl_take isl_printer *p,
                                             struct hls_info *hls) {
   p = isl_printer_start_line(p);
   p = isl_printer_print_str(p, "void kernel");
-  // p = isl_printer_print_int(p, kernel->id);
   p = isl_printer_print_int(p, 0);
   p = isl_printer_print_str(p, "(");
   p = print_kernel_arguments(p, prog, kernel, 1, hls);
@@ -2500,9 +2497,6 @@ __isl_give isl_printer *autosa_kernel_print_io(__isl_take isl_printer *p,
 
       /* for (int n = 0; n < data_pack/nxt_data_pack; n++) { */
       /* #pragma HLS UNROLL */
-      // if (hls->target == INTEL_HW)
-      //  p = print_str_new_line(p, "#pragma unroll");
-
       if (hls->target == XILINX_HW) {
         p = isl_printer_start_line(p);
         p = isl_printer_print_str(p, "for (int n = 0; n < ");
@@ -2549,7 +2543,6 @@ __isl_give isl_printer *autosa_kernel_print_io(__isl_take isl_printer *p,
           p = isl_printer_print_str(p, "[");
           if (i == n_arg - 2) {
             if (stmt->u.i.simd_depth != -1) {
-              // DBGASTEXPR(stdout, op, ctx);
               p = isl_printer_print_ast_expr(p, op);
               p = isl_printer_print_str(p, " + n");
             } else {
@@ -2723,14 +2716,10 @@ __isl_give isl_printer *autosa_kernel_print_io(__isl_take isl_printer *p,
         if (data_pack == 1) {
           p = isl_printer_print_str(p, group->array->type);
         } else {
-          // p = isl_printer_print_str(p, group->array->name);
-          // p = isl_printer_print_str(p, "_t");
-          // p = isl_printer_print_int(p, data_pack);
           p = isl_printer_print_str(p, group->array->type);
           p = isl_printer_print_int(p, data_pack);
         }
         p = isl_printer_print_str(p, ")(");
-        // for (int i = data_pack / nxt_data_pack - 1; i >= 0; i--)
         for (int i = 0; i < data_pack / nxt_data_pack; i++) {
           isl_ast_expr *expr = stmt->u.i.local_index;
           isl_ast_expr *op;
@@ -3076,7 +3065,6 @@ static __isl_give isl_printer *autosa_kernel_print_io_transfer_default(
                                         group);
       } else {
         p = isl_printer_start_line(p);
-        // p = isl_printer_print_ast_expr(p, local_index_packed);
         if (stmt->u.i.module->double_buffer &&
             stmt->u.i.module->options->autosa->double_buffer_style == 0) {
           isl_ast_expr *op;
@@ -3278,7 +3266,6 @@ static __isl_give isl_printer *autosa_kernel_print_io_transfer_data_pack(
     } else {
       p = isl_printer_print_str(p, "c");
     }
-    // p = isl_printer_print_str(p, "if (c");
     p = isl_printer_print_int(p, stmt->u.i.coalesce_depth);
     p = isl_printer_print_str(p, " % ");
     p = isl_printer_print_int(p, n_lane / nxt_n_lane);
@@ -3289,8 +3276,6 @@ static __isl_give isl_printer *autosa_kernel_print_io_transfer_data_pack(
   /* buf_data = local[]; */
   p = isl_printer_start_line(p);
   p = isl_printer_print_str(p, "buf_data = ");
-  // p = isl_printer_print_ast_expr(p, local_index_packed);
-  // if (hls->target == INTEL_HW && stmt->u.i.module->double_buffer) {
   if (stmt->u.i.module->double_buffer &&
       stmt->u.i.module->options->autosa->double_buffer_style == 0) {
     isl_ast_expr *op;
@@ -3441,7 +3426,6 @@ static __isl_give isl_printer *autosa_kernel_print_io_transfer_data_pack(
       } else {
         p = isl_printer_print_str(p, "c");
       }
-      // p = isl_printer_print_str(p, "if (c");
       p = isl_printer_print_int(p, stmt->u.i.coalesce_depth);
       p = isl_printer_print_str(p, " % ");
       p = isl_printer_print_int(p, n_lane / nxt_n_lane);
@@ -3502,8 +3486,6 @@ static __isl_give isl_printer *autosa_kernel_print_io_transfer_data_pack(
 
     /* local_buf[...] = buf_data; */
     p = isl_printer_start_line(p);
-    // p = isl_printer_print_ast_expr(p, local_index_packed);
-    // if (hls->target == INTEL_HW && stmt->u.i.module->double_buffer) {
     if (stmt->u.i.module->double_buffer &&
         stmt->u.i.module->options->autosa->double_buffer_style == 0) {
       isl_ast_expr *op;
@@ -3589,11 +3571,9 @@ __isl_give isl_printer *autosa_kernel_print_io_transfer(
   struct autosa_array_ref_group *group = stmt->u.i.group;
   int n_lane = stmt->u.i.data_pack;
   int nxt_n_lane = stmt->u.i.nxt_data_pack;
-  // int is_filter = stmt->u.i.filter;
   int is_buf = stmt->u.i.buf;
   isl_ctx *ctx = isl_printer_get_ctx(p);
 
-  //  p = ppcg_start_block(p);
   if (n_lane == nxt_n_lane) {
     p = autosa_kernel_print_io_transfer_default(p, stmt, group, n_lane, hls,
                                                 iterator_prefix);
@@ -3601,7 +3581,6 @@ __isl_give isl_printer *autosa_kernel_print_io_transfer(
     p = autosa_kernel_print_io_transfer_data_pack(
         p, stmt, group, n_lane, nxt_n_lane, hls, iterator_prefix);
   }
-  //  p = ppcg_end_block(p);
 
   return p;
 }
@@ -3631,8 +3610,6 @@ static __isl_give isl_printer *io_stmt_print_global_index(
     array_name = isl_ast_expr_op_get_arg(index, 0);
     p = isl_printer_print_ast_expr(p, array_name);
     p = isl_printer_print_str(p, "[i]");
-    // p = isl_printer_print_ast_expr(p, array_name);
-    // p = isl_printer_print_str(p, "_cnt++]");
     isl_ast_expr_free(array_name);
   }
   isl_ast_expr_free(index);
@@ -3719,19 +3696,6 @@ __isl_give isl_printer *autosa_kernel_print_drain_merge(
   arg = isl_ast_expr_from_id(id);
   free(new_array_name);
   index_to = isl_ast_expr_set_op_arg(isl_ast_expr_copy(index), 0, arg);
-  //#ifdef _DEBUG
-  //  DBGVAR(std::cout, n_arg);
-  //  isl_printer *pd = isl_printer_to_file(ctx, stdout);
-  //  pd = isl_printer_print_ast_expr(pd, index);
-  //  pd = isl_printer_end_line(pd);
-  //  pd = isl_printer_print_ast_expr(pd, index_to);
-  //  pd = isl_printer_end_line(pd);
-  ////  pd = isl_printer_print_ast_expr(pd, arg);
-  ////  pd = isl_printer_end_line(pd);
-  ////  pd = isl_printer_print_id(pd, id);
-  ////  pd = isl_printer_end_line(pd);
-  //  pd = isl_printer_free(pd);
-  //#endif
 
   arg = isl_ast_expr_get_op_arg(index, 0);
   id = isl_ast_expr_id_get_id(arg);

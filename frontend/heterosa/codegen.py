@@ -8,7 +8,7 @@ import numpy as np
 
 
 def delete_arg_from_arg_list(line, arg, content):
-    """ Delete the argument from the argument list
+    """Delete the argument from the argument list
 
     Parameters
     ----------
@@ -22,43 +22,27 @@ def delete_arg_from_arg_list(line, arg, content):
         the printed content before current line
     """
     line = line.strip()
-    # print(line)
-    if line[-1] != ',':
-        # print('test\n')
-        # print(line)
-        # print(content[-1])
-        comma_pos = content[-1].find(',')
-        content[-1] = content[-1][:comma_pos] + '\n'
+    if line[-1] != ",":
+        comma_pos = content[-1].find(",")
+        content[-1] = content[-1][:comma_pos] + "\n"
 
-    """
-    line = re.sub(r'( )(' + re.escape(arg) + r')(,)',
-                  '', line)
-    line = re.sub(r'( )(' + re.escape(arg) + r')(\))',
-                  r'\g<3>', line)
-    line = re.sub(r'(\()(' + re.escape(arg) + r')(, )',
-                  r'\g<1>', line)
-    line = re.sub(r'(\()(' + re.escape(arg) + r')(\))',
-                  r'\g<1>\g<3>', line)
-    """
 
 def contains_pipeline_for(pos, lines):
-    """ Examine if there is any for loop with hls_pipeline annotation inside the current for loop
-
-    """
+    """Examine if there is any for loop with hls_pipeline annotation inside the current for loop"""
     n_l_bracket = 0
     n_r_bracket = 0
     code_len = len(lines)
     init_state = 1
     while pos < code_len and n_r_bracket <= n_l_bracket:
-        if lines[pos].find('{') != -1:
+        if lines[pos].find("{") != -1:
             n_l_bracket += 1
-        if lines[pos].find('}') != -1:
+        if lines[pos].find("}") != -1:
             n_r_bracket += 1
-        if lines[pos].find('for') != -1:
+        if lines[pos].find("for") != -1:
             if init_state:
                 init_state = 0
             else:
-                if lines[pos + 1].find('hls_pipeline') != -1:
+                if lines[pos + 1].find("hls_pipeline") != -1:
                     return 1
         if n_l_bracket == n_r_bracket and not init_state:
             break
@@ -67,7 +51,7 @@ def contains_pipeline_for(pos, lines):
 
 
 def insert_xlnx_pragmas(lines):
-    """ Insert HLS pragmas for Xilinx program
+    """Insert HLS pragmas for Xilinx program
 
     Replace the comments of "// hls_pipeline" and "// hls_unroll" with
     HLS pragmas
@@ -80,7 +64,7 @@ def insert_xlnx_pragmas(lines):
 
     Parameters
     ----------
-    lines: 
+    lines:
         contains the codelines of the program
     """
     # Handle hls_dependence
@@ -90,11 +74,10 @@ def insert_xlnx_pragmas(lines):
     pos = 0
     while pos < code_len:
         line = lines[pos]
-        if line.find("// hls_pipeline") != - \
-                1 or line.find("// hls_dependence") != -1:
+        if line.find("// hls_pipeline") != -1 or line.find("// hls_dependence") != -1:
             is_pipeline = 0
             is_dep = 0
-            if line.find('// hls_pipeline') != -1:
+            if line.find("// hls_pipeline") != -1:
                 is_pipeline = 1
             else:
                 is_dep = 1
@@ -106,17 +89,20 @@ def insert_xlnx_pragmas(lines):
             find_pipeline = 0
             init_state = 1
             while next_pos < code_len and n_r_bracket <= n_l_bracket:
-                if is_pipeline and lines[next_pos].find('hls_pipeline') != -1:
+                if is_pipeline and lines[next_pos].find("hls_pipeline") != -1:
                     find_pipeline = 1
                     break
-                if is_dep and lines[next_pos].find(
-                        'hls_dependence') != -1 and handle_dep_pragma:
+                if (
+                    is_dep
+                    and lines[next_pos].find("hls_dependence") != -1
+                    and handle_dep_pragma
+                ):
                     find_pipeline = 1
                     break
-                if lines[next_pos].find('{') != -1:
+                if lines[next_pos].find("{") != -1:
                     n_l_bracket += 1
                     init_state = 0
-                if lines[next_pos].find('}') != -1:
+                if lines[next_pos].find("}") != -1:
                     n_r_bracket += 1
                 if n_l_bracket == n_r_bracket and not init_state:
                     break
@@ -131,20 +117,26 @@ def insert_xlnx_pragmas(lines):
             n_l_bracket = 0
             n_r_bracket = 0
             while prev_pos >= 0:
-                if lines[prev_pos].find('while') != -1:
+                if lines[prev_pos].find("while") != -1:
                     break
-                if lines[prev_pos].find('{') != -1:
+                if lines[prev_pos].find("{") != -1:
                     n_l_bracket += 1
-                if lines[prev_pos].find('}') != -1:
+                if lines[prev_pos].find("}") != -1:
                     n_r_bracket += 1
-                if lines[prev_pos].find('for') != -1:
+                if lines[prev_pos].find("for") != -1:
                     if n_l_bracket > n_r_bracket:
                         # check if the pragma is already inserted
-                        if is_pipeline and lines[prev_pos +
-                                                 1].find('#pragma HLS PIPELINE II=1\n') == -1:
+                        if (
+                            is_pipeline
+                            and lines[prev_pos + 1].find("#pragma HLS PIPELINE II=1\n")
+                            == -1
+                        ):
                             find_for = 1
-                        if is_dep and lines[prev_pos + 2].find(
-                                '#pragma HLS DEPENDENCE') == -1 and handle_dep_pragma:
+                        if (
+                            is_dep
+                            and lines[prev_pos + 2].find("#pragma HLS DEPENDENCE") == -1
+                            and handle_dep_pragma
+                        ):
                             find_for = 1
                         # check if there is any other for loop with
                         # hls_pipeline annotation inside
@@ -154,29 +146,33 @@ def insert_xlnx_pragmas(lines):
                 prev_pos -= 1
             if find_for == 1:
                 # insert the pragma right after the for loop
-                indent = lines[prev_pos].find('for')
+                indent = lines[prev_pos].find("for")
                 if line.find("hls_pipeline") != -1:
-                    new_line = ' ' * indent + "#pragma HLS PIPELINE II=1\n"
+                    new_line = " " * indent + "#pragma HLS PIPELINE II=1\n"
                 else:
                     line_cp = line
-                    var_name = line_cp.strip().split('.')[-1]
-                    new_line = ' ' * indent + "#pragma HLS DEPENDENCE variable=" + \
-                        var_name + " inter false\n"
+                    var_name = line_cp.strip().split(".")[-1]
+                    new_line = (
+                        " " * indent
+                        + "#pragma HLS DEPENDENCE variable="
+                        + var_name
+                        + " inter false\n"
+                    )
                 lines.insert(prev_pos + 1, new_line)
                 del lines[pos + 1]
         elif line.find("// hls_unroll") != -1:
             # Find the for loop above before hitting any "simd"
             prev_pos = pos - 1
             find_for = 0
-            while prev_pos >= 0 and lines[prev_pos].find('simd') == -1:
-                if lines[prev_pos].find('for') != -1:
+            while prev_pos >= 0 and lines[prev_pos].find("simd") == -1:
+                if lines[prev_pos].find("for") != -1:
                     find_for = 1
                     break
                 prev_pos -= 1
             if find_for == 1:
                 # insert the pragma right after the for loop
-                indent = lines[prev_pos].find('for')
-                new_line = ' ' * indent + "#pragma HLS UNROLL\n"
+                indent = lines[prev_pos].find("for")
+                new_line = " " * indent + "#pragma HLS UNROLL\n"
                 lines.insert(prev_pos + 1, new_line)
                 del lines[pos + 1]
         pos = pos + 1
@@ -194,11 +190,11 @@ def float_to_int(matchobj):
 
 def index_simplify(matchobj):
     str_expr = matchobj.group(0)
-    if str_expr == '[arb]' or str_expr == '[!arb]':
+    if str_expr == "[arb]" or str_expr == "[!arb]":
         return str_expr
-    if '++' in str_expr:
+    if "++" in str_expr:
         return str_expr
-    expr = sympy.sympify(str_expr[1: len(str_expr) - 1])
+    expr = sympy.sympify(str_expr[1 : len(str_expr) - 1])
     """
     This will sometimes cause bugs due to the different semantics in C
     E.g., x = 9, (x+3)/4 != x/4+3/4.
@@ -210,52 +206,51 @@ def index_simplify(matchobj):
     """
     expr = sympy.simplify(expr)
     new_str_expr = sympy.printing.ccode(expr)
-#  # We will try to replace floats with integers if values won't change
-#  new_str_expr = re.sub('\d+\.\d+', float_to_int, new_str_expr)
 
-    if 'floor' in new_str_expr or 'ceil' in new_str_expr or '.0' in new_str_expr:
+    if "floor" in new_str_expr or "ceil" in new_str_expr or ".0" in new_str_expr:
         return str_expr
     else:
-        return '[' + new_str_expr + ']'
+        return "[" + new_str_expr + "]"
 
 
 def mod_simplify(matchobj):
     str_expr = matchobj.group(0)
-    str_expr = str_expr[1: len(str_expr) - 3]
+    str_expr = str_expr[1 : len(str_expr) - 3]
     expr = sympy.sympify(str_expr)
     expr = sympy.simplify(expr)
     str_expr = str(expr)
 
-    return '(' + str_expr + ') %'
+    return "(" + str_expr + ") %"
 
 
 def simplify_expressions(lines):
-    """ Simplify the index expressions in the program
+    """Simplify the index expressions in the program
 
     Use Sympy to simplify all the array index expressions in the program.
 
     Parameters
     ----------
-    lines: 
+    lines:
         contains the codelines of the program
     """
     code_len = len(lines)
     # Simplify array index expressions
     for pos in range(code_len):
         line = lines[pos]
-        line = re.sub(r'\[(.+?)\]', index_simplify, line)
+        line = re.sub(r"\[(.+?)\]", index_simplify, line)
         lines[pos] = line
 
     # Simplify mod expressions
     for pos in range(code_len):
         line = lines[pos]
-        line = re.sub(r'\((.+?)\) %', mod_simplify, line)
+        line = re.sub(r"\((.+?)\) %", mod_simplify, line)
         lines[pos] = line
 
     return lines
 
+
 def shrink_bit_width(lines, target):
-    """ Calculate the bitwidth of the iterator and shrink it to the proper size
+    """Calculate the bitwidth of the iterator and shrink it to the proper size
 
     We will examine the for loops. Examine the upper bound of the loop. If the
     upper bound is a number, we will compute the bitwidth of the iterator.
@@ -265,66 +260,61 @@ def shrink_bit_width(lines, target):
 
     Parameters
     ----------
-    lines: 
+    lines:
         contains the codelines of the program
-    target: 
+    target:
         xilinx|intel
     """
 
     code_len = len(lines)
     for pos in range(code_len):
         line = lines[pos]
-        if line.find('for') != -1:
+        if line.find("for") != -1:
             # Parse the loop upper bound
-            m = re.search('<=(.+?);', line)
+            m = re.search("<=(.+?);", line)
             if m:
                 ub = m.group(1).strip()
                 if ub.isnumeric():
                     # Replace it with shallow bit width
                     bitwidth = int(np.ceil(np.log2(float(ub) + 1))) + 1
-                    if target == 'xilinx':
-                        new_iter_t = 'ap_uint<' + str(bitwidth) + '>'
-                    elif target == 'intel':
-                        new_iter_t = 'uint' + str(bitwidth) + '_t'
-                    line = re.sub('int', new_iter_t, line)
+                    if target == "xilinx":
+                        new_iter_t = "ap_uint<" + str(bitwidth) + ">"
+                    elif target == "intel":
+                        new_iter_t = "uint" + str(bitwidth) + "_t"
+                    line = re.sub("int", new_iter_t, line)
                     lines[pos] = line
-            m = re.search('<(.+?);', line)
+            m = re.search("<(.+?);", line)
             if m:
                 ub = m.group(1).strip()
                 if ub.isnumeric():
                     # Replace it with shallow bit width
                     bitwidth = int(np.ceil(np.log2(float(ub)))) + 1
-                    new_iter_t = 'ap_uint<' + str(bitwidth) + '>'
-                    line = re.sub('int', new_iter_t, line)
+                    new_iter_t = "ap_uint<" + str(bitwidth) + ">"
+                    line = re.sub("int", new_iter_t, line)
                     lines[pos] = line
 
     for pos in range(code_len):
         line = lines[pos]
-        m = re.search(r'/\* UB: (.+?) \*/', line)
+        m = re.search(r"/\* UB: (.+?) \*/", line)
         if m:
             ub = m.group(1).strip()
             if ub.isnumeric():
                 # Replace it with shallow bit width
                 bitwidth = int(np.ceil(np.log2(float(ub) + 1))) + 1
-                if target == 'xilinx':
-                    new_iter_t = 'ap_uint<' + str(bitwidth) + '>'
-                elif target == 'intel':
-                    new_iter_t = 'uint' + str(bitwidth) + '_t'
-                #line = re.sub('int', new_iter_t, line)
+                if target == "xilinx":
+                    new_iter_t = "ap_uint<" + str(bitwidth) + ">"
+                elif target == "intel":
+                    new_iter_t = "uint" + str(bitwidth) + "_t"
                 line = re.sub(
-                    r'(int)' +
-                    r'\s' +
-                    r'([a-zA-Z])',
-                    new_iter_t +
-                    r' \g<2>',
-                    line)
+                    r"(int)" + r"\s" + r"([a-zA-Z])", new_iter_t + r" \g<2>", line
+                )
                 lines[pos] = line
 
     return lines
 
 
 def lift_split_buffers(lines):
-    """ Lift the split buffers in the program
+    """Lift the split buffers in the program
 
     For each module, if we find any split buffers with the name "buf_data_split",
     we will lift them out of the for loops and put them in the variable declaration
@@ -332,27 +322,27 @@ def lift_split_buffers(lines):
 
     Parameters
     ----------
-    lines: 
+    lines:
         contains the codelines of the program
     """
     code_len = len(lines)
     for pos in range(code_len):
         line = lines[pos]
-        if line.find('variable=buf_data_split') != -1:
+        if line.find("variable=buf_data_split") != -1:
             # Search for the variable declaration section
             decl_pos = -1
             prev_pos = pos - 1
             while prev_pos >= 0:
                 prev_line = lines[prev_pos]
-                if prev_line.find('Variable Declaration') != -1:
+                if prev_line.find("Variable Declaration") != -1:
                     decl_pos = prev_pos
                     break
                 prev_pos -= 1
             # Move the two code lines at [pos - 1] and [pos] to [decl_pos] and
             # [decl_pos + 1]
-            indent = lines[decl_pos].find('/*')
-            line1 = ' ' * indent + lines[pos - 1].lstrip()
-            line2 = ' ' * indent + lines[pos].lstrip()
+            indent = lines[decl_pos].find("/*")
+            line1 = " " * indent + lines[pos - 1].lstrip()
+            line2 = " " * indent + lines[pos].lstrip()
             del lines[pos - 1]
             del lines[pos - 1]
             lines.insert(decl_pos, line1)
@@ -360,8 +350,9 @@ def lift_split_buffers(lines):
 
     return lines
 
+
 def build_dummy_module_def(group_name, fifo_type, module_in, PE_ids):
-    """ Build the definition of the dummy module
+    """Build the definition of the dummy module
 
     Parameters
     ----------
@@ -370,28 +361,29 @@ def build_dummy_module_def(group_name, fifo_type, module_in, PE_ids):
     module_in: int
     PE_ids: list
     """
-    dir_str = 'out' if module_in == 0 else 'in'
-    index_str = ['idx', 'idy', 'idz']
-    fifo_name = f'fifo_{group_name}_{dir_str}'
+    dir_str = "out" if module_in == 0 else "in"
+    index_str = ["idx", "idy", "idz"]
+    fifo_name = f"fifo_{group_name}_{dir_str}"
 
     lines = []
-    lines.append('/* Module Definition */\n')
-    lines.append(f'void {group_name}_PE_dummy_{dir_str}(')
+    lines.append("/* Module Definition */\n")
+    lines.append(f"void {group_name}_PE_dummy_{dir_str}(")
     for pos in range(len(PE_ids)):
-        lines.append(f'int {index_str[pos]}, ')
-    lines.append(f'hls::stream<{fifo_type}> &{fifo_name}){{\n')
+        lines.append(f"int {index_str[pos]}, ")
+    lines.append(f"hls::stream<{fifo_type}> &{fifo_name}){{\n")
     if module_in == 0:
-        lines.append(f'  if (!{fifo_name}.full())\n')
-        lines.append(f'    {fifo_name}.write(0);\n')
+        lines.append(f"  if (!{fifo_name}.full())\n")
+        lines.append(f"    {fifo_name}.write(0);\n")
     else:
-        lines.append(f'  {fifo_type} fifo_data = {fifo_name}.read();\n')
-    lines.append(f'}}\n')
-    lines.append(f'/* Module Definition */\n')
+        lines.append(f"  {fifo_type} fifo_data = {fifo_name}.read();\n")
+    lines.append(f"}}\n")
+    lines.append(f"/* Module Definition */\n")
 
     return lines
 
+
 def build_dummy_module_call(group_name, fifo_name, module_in, PE_ids):
-    """ Build the call of the dummy module
+    """Build the call of the dummy module
 
     Parameters
     ----------
@@ -400,24 +392,25 @@ def build_dummy_module_call(group_name, fifo_name, module_in, PE_ids):
     module_in: int
     PE_ids: list
     """
-    dir_str = 'out' if module_in == 0 else 'in'
+    dir_str = "out" if module_in == 0 else "in"
 
     lines = []
-    lines.append('\n')
-    lines.append('  /* Module Call */\n')
-    lines.append(f'  {group_name}_PE_dummy_{dir_str}(\n')
+    lines.append("\n")
+    lines.append("  /* Module Call */\n")
+    lines.append(f"  {group_name}_PE_dummy_{dir_str}(\n")
     for id in PE_ids:
-        lines.append(f'    /* module id */ {id},\n')
-    lines.append(f'    /* fifo */ {fifo_name}\n')    
-    lines.append(f'  );\n')
-    lines.append(f'  /* Module Call */\n')
+        lines.append(f"    /* module id */ {id},\n")
+    lines.append(f"    /* fifo */ {fifo_name}\n")
+    lines.append(f"  );\n")
+    lines.append(f"  /* Module Call */\n")
 
     return lines
 
-def insert_dummy_modules(def_lines, call_lines):
-    """ Insert the missing dummy modules
 
-    Collect the FIFO information of PEs (fifo_name, fifo_type). 
+def insert_dummy_modules(def_lines, call_lines):
+    """Insert the missing dummy modules
+
+    Collect the FIFO information of PEs (fifo_name, fifo_type).
     Delete those FIFOs that are connected to other modules.
     Insert dummy modules for the rest of FIFOs.
 
@@ -430,89 +423,88 @@ def insert_dummy_modules(def_lines, call_lines):
     """
     PE_fifos = []
     for line in def_lines:
-        if line.find('void PE_wrapper') != -1:
+        if line.find("void PE_wrapper") != -1:
             # Parse the argument list
-            m = re.search(r'\((.+?)\)', line)            
-            args = m.group(1).strip().split(',')            
+            m = re.search(r"\((.+?)\)", line)
+            args = m.group(1).strip().split(",")
             for arg in args:
-                if arg.find('fifo') != -1:
-                    m = re.search(r'stream<(.+?)>', arg)
+                if arg.find("fifo") != -1:
+                    m = re.search(r"stream<(.+?)>", arg)
                     fifo_type = m.group(1)
-                    fifo_name = arg.split('&')[-1]
-                    PE_fifos.append({'type': fifo_type, 'name': fifo_name})
-    #print(PE_fifos)
+                    fifo_name = arg.split("&")[-1]
+                    PE_fifos.append({"type": fifo_type, "name": fifo_name})
     # Collect all used fifos
     used_fifos = {}
     kernel_start = 0
     for line in call_lines:
-        if line.find('void kernel0') != -1:
+        if line.find("void kernel0") != -1:
             kernel_start = 1
         if kernel_start:
-            if line.find('* fifo *') != -1:                                                
-                fifo = line.strip().split('*')[2][2:]
-                if fifo[-1] == ',':
+            if line.find("* fifo *") != -1:
+                fifo = line.strip().split("*")[2][2:]
+                if fifo[-1] == ",":
                     fifo = fifo[:-1]
                 # Only process PE level fifos
-                if fifo.find('PE') == -1:
+                if fifo.find("PE") == -1:
                     continue
                 if fifo not in used_fifos:
                     used_fifos[fifo] = -1
                 else:
-                    del used_fifos[fifo]                    
-    #print(used_fifos)
+                    del used_fifos[fifo]
     # Locate the fifo position
     inside_module = False
     inside_PE = False
-    fifo_pos = 0    
+    fifo_pos = 0
     PE_call_start = -1
     PE_call_end = -1
     line_id = 0
     for line in call_lines:
-        if line.find('Module Call') != -1:
+        if line.find("Module Call") != -1:
             inside_module = not inside_module
             if inside_PE:
                 PE_call_end = line_id
             inside_PE = False
         if inside_module:
-            if line.find('PE_wrapper') != -1:
+            if line.find("PE_wrapper") != -1:
                 inside_PE = True
                 fifo_pos = 0
                 if PE_call_start == -1:
-                    PE_call_start = line_id - 1                
+                    PE_call_start = line_id - 1
             if inside_PE:
-                if line.find('fifo') != -1:
+                if line.find("fifo") != -1:
                     for used_fifo in used_fifos:
                         if line.find(used_fifo) != -1:
                             used_fifos[used_fifo] = fifo_pos
                     fifo_pos += 1
         line_id += 1
-    #print(used_fifos)
     # Insert the dummy module definitions
     offset_line = 0
     for used_fifo in used_fifos:
         fifo_info = PE_fifos[used_fifos[used_fifo]]
         # Extract the module direction
-        if fifo_info['name'].endswith('in'):
+        if fifo_info["name"].endswith("in"):
             module_in = 0
         else:
             module_in = 1
         # Extract the group name
-        if fifo_info['name'].endswith('in'):
-            group_name = fifo_info['name'][5:-3]
+        if fifo_info["name"].endswith("in"):
+            group_name = fifo_info["name"][5:-3]
         else:
-            group_name = fifo_info['name'][5:-4]
+            group_name = fifo_info["name"][5:-4]
         # Extract the PE ids
-        PE_ids = used_fifo[len(f'fifo_{group_name}_PE_'):].split('_')
-        #print(used_fifo, module_in, group_name, PE_ids)
+        PE_ids = used_fifo[len(f"fifo_{group_name}_PE_") :].split("_")
 
         # Build the dummy module definition
-        module_def = build_dummy_module_def(group_name, fifo_info['type'], module_in, PE_ids)
-        #print(module_def)        
+        module_def = build_dummy_module_def(
+            group_name, fifo_info["type"], module_in, PE_ids
+        )
         def_lines += module_def
-        def_lines.append('\n')
+        def_lines.append("\n")
 
         # Build the dummy module call
-        module_call = build_dummy_module_call(group_name, used_fifo, module_in, PE_ids) # TODO
+        module_call = build_dummy_module_call(
+            group_name, used_fifo, module_in, PE_ids
+        )  # TODO
         if module_in == 0:
             for i in range(len(module_call)):
                 call_lines.insert(PE_call_start - 1 + i, module_call[i])
@@ -521,12 +513,11 @@ def insert_dummy_modules(def_lines, call_lines):
             for i in range(len(module_call)):
                 call_lines.insert(PE_call_end + 1 + offset_line + i, module_call[i])
 
-    #print(PE_call_start, PE_call_end)
-
     return def_lines, call_lines
 
+
 def reorder_module_calls(lines):
-    """ Reorder the module calls in the program
+    """Reorder the module calls in the program
 
     For I/O module calls, we will reverse the sequence of calls for output modules.
     Starting from the first module, enlist the module calls until the boundary module
@@ -566,16 +557,16 @@ def reorder_module_calls(lines):
                     output_io = 1
                     # Examine if the module is an boundary module
                     if nxt_line.find("boundary") != -1:
-                        boundary = 1                
+                        boundary = 1
                 # Extract the module name
-                nxt_line = nxt_line.strip()                
-                if nxt_line.find('<') != -1:
-                    module_name = nxt_line.split('<')[0]
+                nxt_line = nxt_line.strip()
+                if nxt_line.find("<") != -1:
+                    module_name = nxt_line.split("<")[0]
                 else:
-                    module_name = nxt_line.split('(')[0]    
-                if module_name.find('wrapper'):
+                    module_name = nxt_line.split("(")[0]
+                if module_name.find("wrapper"):
                     module_name = module_name[:-8]
-                if boundary:                                            
+                if boundary:
                     module_name = module_name[:-9]
                 if prev_module_name == "":
                     prev_module_name = module_name
@@ -605,7 +596,7 @@ def reorder_module_calls(lines):
                         # Reverse the list
                         module_calls.reverse()
                         # Insert it back
-                        left_lines = lines[last_line + 1:]
+                        left_lines = lines[last_line + 1 :]
                         lines = lines[:first_line]
                         first = 1
                         for c in module_calls:
@@ -620,47 +611,45 @@ def reorder_module_calls(lines):
                         output_io = 0
                         reset = 1
                     if new_module:
-                        # Pop out the previous module calls except the last one                        
+                        # Pop out the previous module calls except the last one
                         module_calls = module_calls[-1:]
-                        
 
         if module_start and output_io:
             module_call.append(line)
 
     return lines
 
+
 def xilinx_run(
-        kernel_call,
-        kernel_def,
-        kernel='heterosa.out/src/kernel_kernel.cpp',
-        host='opencl'):
-    """ Generate the kernel file for Xilinx platform
+    kernel_call, kernel_def, kernel="heterosa.out/src/kernel_kernel.cpp", host="opencl"
+):
+    """Generate the kernel file for Xilinx platform
 
     We will copy the content of kernel definitions before the kernel calls.
 
     Parameters
     ----------
-    kernel_call: 
+    kernel_call:
         file containing kernel calls
-    kernel_def: 
+    kernel_def:
         file containing kernel definitions
-    kernel: 
+    kernel:
         output kernel file
     """
 
     # Load kernel definition file
     lines = []
-    with open(kernel_def, 'r') as f:
+    with open(kernel_def, "r") as f:
         lines = f.readlines()
     call_lines = []
-    with open(kernel_call, 'r') as f:
+    with open(kernel_call, "r") as f:
         call_lines = f.readlines()
 
     # Simplify the expressions
     lines = simplify_expressions(lines)
 
     # Change the loop iterator type
-    lines = shrink_bit_width(lines, 'xilinx')
+    lines = shrink_bit_width(lines, "xilinx")
 
     # Insert the HLS pragmas
     lines = insert_xlnx_pragmas(lines)
@@ -668,22 +657,19 @@ def xilinx_run(
     # Lift the split_buffers
     lines = lift_split_buffers(lines)
 
-    ## Insert missing dummy modules
-    #lines, call_lines = insert_dummy_modules(lines, call_lines)
-
     kernel = str(kernel)
     print("Please find the generated file: " + kernel)
 
-    with open(kernel, 'w') as f:
-        if host == 'opencl':
+    with open(kernel, "w") as f:
+        if host == "opencl":
             # Merge kernel header file
-            kernel_header = kernel.split('.')
-            kernel_header[-1] = 'h'
+            kernel_header = kernel.split(".")
+            kernel_header[-1] = "h"
             kernel_header = ".".join(kernel_header)
-            with open(kernel_header, 'r') as f2:
+            with open(kernel_header, "r") as f2:
                 header_lines = f2.readlines()
                 f.writelines(header_lines)
-            f.write('\n')
+            f.write("\n")
 
         f.writelines(lines)
 
@@ -691,43 +677,46 @@ def xilinx_run(
         call_lines = reorder_module_calls(call_lines)
         f.writelines(call_lines)
 
+
 def main():
-    parser = argparse.ArgumentParser(description='==== AutoSA CodeGen ====')
+    parser = argparse.ArgumentParser(description="==== AutoSA CodeGen ====")
     parser.add_argument(
-        '-c',
-        '--kernel-call',
-        metavar='KERNEL_CALL',
+        "-c",
+        "--kernel-call",
+        metavar="KERNEL_CALL",
         required=True,
-        help='kernel function call')
+        help="kernel function call",
+    )
     parser.add_argument(
-        '-d',
-        '--kernel-def',
-        metavar='KERNEL_DEF',
+        "-d",
+        "--kernel-def",
+        metavar="KERNEL_DEF",
         required=True,
-        help='kernel function definition')
+        help="kernel function definition",
+    )
     parser.add_argument(
-        '-t',
-        '--target',
-        metavar='TARGET',
+        "-t",
+        "--target",
+        metavar="TARGET",
         required=True,
-        help='hardware target: autosa_hls_c')
+        help="hardware target: autosa_hls_c",
+    )
     parser.add_argument(
-        '-o',
-        '--output',
-        metavar='OUTPUT',
+        "-o", "--output", metavar="OUTPUT", required=False, help="output kernel file"
+    )
+    parser.add_argument(
+        "--host",
+        metavar="HOST",
         required=False,
-        help='output kernel file')
-    parser.add_argument(
-        '--host',
-        metavar='HOST',
-        required=False,
-        help='Xilinx host target: hls|opencl',
-        default='opencl')
+        help="Xilinx host target: hls|opencl",
+        default="opencl",
+    )
 
     args = parser.parse_args()
 
-    if args.target == 'autosa_hls_c':
+    if args.target == "autosa_hls_c":
         xilinx_run(args.kernel_call, args.kernel_def, args.output, args.host)
+
 
 if __name__ == "__main__":
     main()

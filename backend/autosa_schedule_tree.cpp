@@ -409,14 +409,6 @@ __isl_give isl_schedule_node *loop_interchange_at_node(
   isl_multi_union_pw_aff_free(sc);
 
   return node;
-
-  //  /* Obtain the schedule from the schedule node. */
-  //  isl_schedule *schedule = isl_schedule_node_get_schedule(node);
-  //
-  //  isl_schedule_node_free(node);
-  //  isl_multi_union_pw_aff_free(sc);
-  //
-  //  return schedule;
 }
 
 /* Examine if the node is a permutable band node. If so,
@@ -933,15 +925,8 @@ static __isl_give isl_schedule_node *insert_node_at_depth(
   }
 
   if (isl_schedule_node_get_schedule_depth(node) != data->depth) {
-    //#ifdef _DEBUG
-    //    DBGSCHDNODE(stdout, node, isl_schedule_node_get_ctx(node));
-    //#endif
     return node;
   }
-
-  //#ifdef _DEBUG
-  //  DBGSCHDNODE(stdout, node, isl_schedule_node_get_ctx(node));
-  //#endif
 
   /* Check if the node is right under the "latency" node.
    * If true, move the node to the mark node.
@@ -970,10 +955,6 @@ static __isl_give isl_schedule_node *insert_node_at_depth(
   id = isl_id_alloc(isl_schedule_node_get_ctx(node), "inserted", NULL);
   node = isl_schedule_node_insert_mark(node, id);
 
-  //#ifdef _DEBUG
-  //  DBGSCHDNODE(stdout, node, isl_schedule_node_get_ctx(node));
-  //#endif
-
   return node;
 }
 
@@ -989,15 +970,9 @@ __isl_give isl_schedule_node *autosa_node_sink_to_depth(
   prop = extract_node_band_prop(node);
   /* Delete the current node */
   node = isl_schedule_node_delete(node);
-  //#ifdef _DEBUG
-  //  DBGSCHDNODE(stdout, node, isl_schedule_node_get_ctx(node));
-  //#endif
   struct insert_node_at_depth_data data = {mupa, prop, depth};
   node = isl_schedule_node_map_descendant_bottom_up(node, &insert_node_at_depth,
                                                     &data);
-  //#ifdef _DEBUG
-  //  DBGSCHDNODE(stdout, node, isl_schedule_node_get_ctx(node));
-  //#endif
   /* Delete the inserted mark */
   node = isl_schedule_node_map_descendant_bottom_up(node, &delete_inserted_mark,
                                                     NULL);
@@ -1124,10 +1099,6 @@ __isl_give isl_schedule_node *autosa_node_sink_to_mark(
  */
 __isl_give isl_schedule_node *reorder_band_by_dep_dis(
     __isl_take isl_schedule_node *node) {
-  //#ifdef _DEBUG
-  //  DBGSCHDNODE(stdout, node, isl_schedule_node_get_ctx(node))
-  //#endif
-
   int n = isl_schedule_node_band_n_member(node);
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
@@ -1138,10 +1109,6 @@ __isl_give isl_schedule_node *reorder_band_by_dep_dis(
       }
     }
   }
-
-  //#ifdef _DEBUG
-  //  DBGSCHDNODE(stdout, node, isl_schedule_node_get_ctx(node))
-  //#endif
 
   return node;
 }
@@ -1166,10 +1133,6 @@ __isl_give isl_schedule_node *sched_pos_setup(
     __isl_take isl_schedule_node *node) {
   node = isl_schedule_node_map_descendant_bottom_up(node, &band_sched_pos_setup,
                                                     NULL);
-
-  //#ifdef _DEBUG
-  //    DBGSCHDNODE(stdout, node, isl_schedule_node_get_ctx(node))
-  //#endif
   return node;
 }
 
@@ -1363,10 +1326,6 @@ int *extract_band_upper_bounds(__isl_keep isl_schedule_node *node) {
   umap = isl_union_map_intersect_domain(umap, uset);
   uset = isl_union_map_range(umap);
   set = isl_set_from_union_set(uset);
-
-  //#ifdef _DEBUG
-  //  DBGSCHDNODE(stdout, node, isl_schedule_node_get_ctx(node));
-  //#endif
 
   n = isl_schedule_node_band_n_member(node);
   ubs = (int *)malloc(n * sizeof(int));
