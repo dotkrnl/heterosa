@@ -137,6 +137,7 @@ if(NOT cjson_POPULATED)
 endif()
 
 add_executable(heterosa_cc)
+configure_file(version_config.h.in version_config.h)
 target_sources(
     heterosa_cc
     PRIVATE
@@ -155,6 +156,7 @@ target_sources(
     util.c
     util.h
     version.c
+    version_config.h.in
     main.cpp
     autosa_codegen.cpp
     autosa_comm.cpp
@@ -168,7 +170,8 @@ target_sources(
 target_include_directories(
     heterosa_cc
     PRIVATE
-    ${cjson_SOURCE_DIR}
+    "${cjson_SOURCE_DIR}"
+    "${CMAKE_CURRENT_BINARY_DIR}"
 )
 target_link_libraries(
     heterosa_cc

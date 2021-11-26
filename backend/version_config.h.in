@@ -1,0 +1,4 @@
+#define xstr(s) str(s)
+#define str(s) #s
+#define heterosa_VERSION_MAJOR @heterosa_VERSION_MAJOR@
+#define heterosa_VERSION_MINOR @heterosa_VERSION_MINOR@

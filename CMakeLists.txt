@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(heterosa)
+project(heterosa VERSION 0.0)
 
 set(CPACK_PACKAGE_NAME heterosa)
 set(CPACK_PACKAGE_VERSION_MAJOR 0)
