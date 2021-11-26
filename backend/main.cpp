@@ -21,9 +21,6 @@
 #include <pet.h>
 #include "ppcg.h"
 #include "ppcg_options.h"
-#include "cuda.h"
-#include "opencl.h"
-#include "cpu.h"
 
 #include <iostream>
 

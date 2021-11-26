@@ -27,7 +27,6 @@
 
 #include "ppcg.h"
 #include "schedule.h"
-#include "gpu.h"
 #include "util.h"
 
 #ifdef _DEBUG

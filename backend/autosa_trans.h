@@ -10,8 +10,6 @@
 
 #include <isl/constraint.h>
 
-#include "cpu.h"
-
 #include "autosa_common.h"
 
 /* Internal structure for loop tiling in PE optimization.

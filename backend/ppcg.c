@@ -35,11 +35,7 @@
 #include <math.h>
 #include "ppcg.h"
 #include "ppcg_options.h"
-#include "cuda.h"
-#include "opencl.h"
-#include "cpu.h"
 #include "autosa_xilinx_hls_c.h"
-#include "autosa_intel_opencl.h"
 
 //#define _DEBUG
 
@@ -1475,23 +1471,8 @@ int autosa_main_wrap(int argc, char **argv)
 
 	if (check_options(ctx) < 0)
 		r = EXIT_FAILURE;
-	else if (options->ppcg->target == PPCG_TARGET_CUDA)
-		r = generate_cuda(ctx, options->ppcg, options->input);
-	else if (options->ppcg->target == PPCG_TARGET_OPENCL)
-		r = generate_opencl(ctx, options->ppcg, options->input,
-				options->output);
-	else if (options->ppcg->target == PPCG_TARGET_C)
-		r = generate_cpu(ctx, options->ppcg, options->input,
-				options->output);
 	else if (options->ppcg->target == AUTOSA_TARGET_XILINX_HLS_C) 
 	  r = generate_autosa_xilinx_hls_c(ctx, options->ppcg, options->input);
-	else if (options->ppcg->target == AUTOSA_TARGET_INTEL_OPENCL)
-	  r = generate_autosa_intel_opencl(ctx, options->ppcg, options->input);
-//	else if (options->ppcg->target == AUTOSA_TARGET_T2S)
-//	  r = generate_autosa_t2s(ctx, options->ppcg, options->input, 
-//				options->output); // TODO: To fix
-//	else if (options->ppcg->target == AUTOSA_TARGET_C)
-//	  r = generate_autosa_cpu(ctx, options->ppcg, options->input); // TODO: to fix
 
 	isl_ctx_free(ctx);
 

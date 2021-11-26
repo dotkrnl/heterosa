@@ -142,28 +142,8 @@ target_sources(
     PRIVATE
     cpu.c
     cpu.h
-    cuda.c
-    cuda.h
-    opencl.c
-    opencl.h
-    cuda_common.h
-    cuda_common.c
-    gpu.c
-    gpu.h
-    gpu_array_tile.c
-    gpu_array_tile.h
-    gpu_group.c
-    gpu_group.h
-    gpu_hybrid.c
-    gpu_hybrid.h
-    gpu_print.c
-    gpu_print.h
-    gpu_tree.c
-    gpu_tree.h
     grouping.c
     grouping.h
-    hybrid.c
-    hybrid.h
     schedule.c
     schedule.h
     ppcg_options.c
@@ -179,11 +159,8 @@ target_sources(
     autosa_codegen.cpp
     autosa_comm.cpp
     autosa_common.cpp
-    autosa_cpu.cpp
-    autosa_intel_opencl.cpp
     autosa_print.cpp
     autosa_schedule_tree.cpp
-    autosa_t2s.cpp
     autosa_trans.cpp
     autosa_utils.cpp
     autosa_xilinx_hls_c.cpp

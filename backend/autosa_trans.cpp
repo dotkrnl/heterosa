@@ -9,6 +9,8 @@
 #include "autosa_comm.h"
 #include "autosa_codegen.h"
 
+#include "cpu.h"
+
 /* A program is legal to be transformed to systolic array if and only if 
  * it satisfies the following constraints:
  * - one single fully permutable outermost band
