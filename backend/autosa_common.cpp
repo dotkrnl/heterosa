@@ -1,20 +1,19 @@
 /* Defines functions used for AutoSA structs. */
 
-#include <isl/id.h>
-#include <cJSON.h>
-
 #include "autosa_common.h"
-#include "autosa_utils.h"
+
+#include <cJSON.h>
+#include <isl/id.h>
+
 #include "autosa_print.h"
+#include "autosa_utils.h"
 
 /****************************************************************
  * AutoSA kernel
  ****************************************************************/
 /* Free the AutoSA kernel struct. */
-void *autosa_kernel_free(struct autosa_kernel *kernel)
-{
-  if (!kernel)
-    return NULL;
+void *autosa_kernel_free(struct autosa_kernel *kernel) {
+  if (!kernel) return NULL;
 
   isl_schedule_free(kernel->schedule);
   isl_ast_node_free(kernel->tree);
@@ -36,8 +35,7 @@ void *autosa_kernel_free(struct autosa_kernel *kernel)
   isl_union_set_free(kernel->expanded_domain);
   isl_set_free(kernel->host_domain);
   isl_union_set_free(kernel->domain);
-  for (int i = 0; i < kernel->n_array; ++i)
-  {
+  for (int i = 0; i < kernel->n_array; ++i) {
     struct autosa_local_array_info *array = &kernel->array[i];
     for (int j = 0; j < array->n_group; ++j)
       autosa_array_ref_group_free(array->groups[j]);
@@ -52,35 +50,31 @@ void *autosa_kernel_free(struct autosa_kernel *kernel)
 
     isl_multi_pw_aff_free(array->bound);
     isl_ast_expr_free(array->bound_expr);
-    
-    isl_pw_qpolynomial_free(array->serialize_bound);    
-  }
-  if (kernel->array)
-    free(kernel->array);
 
-  for (int i = 0; i < kernel->n_var; i++)
-  {
+    isl_pw_qpolynomial_free(array->serialize_bound);
+  }
+  if (kernel->array) free(kernel->array);
+
+  for (int i = 0; i < kernel->n_var; i++) {
     free(kernel->var[i].name);
     isl_vec_free(kernel->var[i].size);
   }
-  free(kernel->var);  
+  free(kernel->var);
 
   free(kernel);
   return NULL;
 }
 
 /* Copy a new AutoSA kernel struct. */
-struct autosa_kernel *autosa_kernel_copy(struct autosa_kernel *kernel)
-{
-  struct autosa_kernel *kernel_dup = (struct autosa_kernel *)malloc(
-      sizeof(struct autosa_kernel));
+struct autosa_kernel *autosa_kernel_copy(struct autosa_kernel *kernel) {
+  struct autosa_kernel *kernel_dup =
+      (struct autosa_kernel *)malloc(sizeof(struct autosa_kernel));
   kernel_dup->ctx = kernel->ctx;
   kernel_dup->schedule = isl_schedule_copy(kernel->schedule);
   kernel_dup->scop = kernel->scop;
   kernel_dup->options = kernel->options;
   kernel_dup->n_sa_dim = kernel->n_sa_dim;
-  for (int i = 0; i < kernel->n_sa_dim; i++)
-  {
+  for (int i = 0; i < kernel->n_sa_dim; i++) {
     kernel_dup->sa_dim[i] = kernel->sa_dim[i];
   }
   kernel_dup->array_part_w = kernel->array_part_w;
@@ -96,7 +90,8 @@ struct autosa_kernel *autosa_kernel_copy(struct autosa_kernel *kernel)
   kernel_dup->arrays = isl_union_set_copy(kernel->arrays);
   kernel_dup->n_array = kernel->n_array;
   kernel_dup->array = kernel->array;
-  kernel_dup->copy_schedule = isl_union_pw_multi_aff_copy(kernel->copy_schedule);
+  kernel_dup->copy_schedule =
+      isl_union_pw_multi_aff_copy(kernel->copy_schedule);
   kernel_dup->copy_schedule_dim = kernel->copy_schedule_dim;
   kernel_dup->space = isl_space_copy(kernel->space);
   kernel_dup->tree = isl_ast_node_copy(kernel->tree);
@@ -108,12 +103,10 @@ struct autosa_kernel *autosa_kernel_copy(struct autosa_kernel *kernel)
   kernel_dup->pe_filter = isl_union_set_copy(kernel->pe_filter);
   kernel_dup->n_grid = kernel->n_grid;
   kernel_dup->n_block = kernel->n_block;
-  for (int i = 0; i < kernel->n_grid; i++)
-  {
+  for (int i = 0; i < kernel->n_grid; i++) {
     kernel_dup->grid_dim[i] = kernel->grid_dim[i];
   }
-  for (int i = 0; i < kernel->n_block; i++)
-  {
+  for (int i = 0; i < kernel->n_block; i++) {
     kernel_dup->block_dim[i] = kernel->block_dim[i];
   }
   kernel_dup->grid_size = isl_multi_pw_aff_copy(kernel->grid_size);
@@ -129,10 +122,10 @@ struct autosa_kernel *autosa_kernel_copy(struct autosa_kernel *kernel)
 }
 
 /* Allocate a new AutoSA kernel struct with the given schedule. */
-struct autosa_kernel *autosa_kernel_from_schedule(__isl_take isl_schedule *schedule)
-{
-  struct autosa_kernel *kernel = (struct autosa_kernel *)malloc(
-      sizeof(struct autosa_kernel));
+struct autosa_kernel *autosa_kernel_from_schedule(
+    __isl_take isl_schedule *schedule) {
+  struct autosa_kernel *kernel =
+      (struct autosa_kernel *)malloc(sizeof(struct autosa_kernel));
   kernel->ctx = isl_schedule_get_ctx(schedule);
   kernel->schedule = schedule;
   kernel->scop = NULL;
@@ -179,8 +172,7 @@ struct autosa_kernel *autosa_kernel_from_schedule(__isl_take isl_schedule *sched
  * AutoSA access
  ****************************************************************/
 /* Create an identical mapping. */
-static __isl_give isl_map *same(__isl_take isl_space *domain_space)
-{
+static __isl_give isl_map *same(__isl_take isl_space *domain_space) {
   isl_space *space;
   isl_aff *aff;
   isl_multi_aff *next;
@@ -192,10 +184,9 @@ static __isl_give isl_map *same(__isl_take isl_space *domain_space)
 }
 
 /* Construct a map from domain_space to domain_space that increments
- * the dimension at position "pos" and leaves all other dimensions constant. 
+ * the dimension at position "pos" and leaves all other dimensions constant.
  */
-static __isl_give isl_map *next(__isl_take isl_space *domain_space, int pos)
-{
+static __isl_give isl_map *next(__isl_take isl_space *domain_space, int pos) {
   isl_space *space;
   isl_aff *aff;
   isl_multi_aff *next;
@@ -210,16 +201,15 @@ static __isl_give isl_map *next(__isl_take isl_space *domain_space, int pos)
 }
 
 /* Check is the "access" has stride-0 access at dim "pos".
- * The access is already transformed to scheduling domains. 
- * We first create an identical mapping "next_element"that maps the accessed 
- * elements to the same elements. 
- * Then, we create a mapping "map" that maps the array elements accessed by the 
+ * The access is already transformed to scheduling domains.
+ * We first create an identical mapping "next_element"that maps the accessed
+ * elements to the same elements.
+ * Then, we create a mapping "map" that maps the array elements accessed by the
  * current iteration to the elements accssed by the next iteration.
- * We examine if the access is stride-0 by testing if map is the subset of 
+ * We examine if the access is stride-0 by testing if map is the subset of
  * "next_element".
  */
-isl_bool access_is_stride_zero(__isl_keep isl_map *access, int pos)
-{
+isl_bool access_is_stride_zero(__isl_keep isl_map *access, int pos) {
   isl_space *space;
   int dim;
   isl_map *next_element, *map, *next_iter;
@@ -241,8 +231,7 @@ isl_bool access_is_stride_zero(__isl_keep isl_map *access, int pos)
   empty = isl_map_is_empty(map);
   isl_map_free(map);
 
-  if (empty < 0 || empty)
-  {
+  if (empty < 0 || empty) {
     isl_map_free(next_element);
     return empty;
   }
@@ -261,16 +250,15 @@ isl_bool access_is_stride_zero(__isl_keep isl_map *access, int pos)
 }
 
 /* Check is the "access" has stride-1 access at dim "pos".
- * The access is already transformed to scheduling domains. 
- * We first create a mapping "next_element"that maps the accessed 
- * elements to the elements with a stride of one. 
- * Then, we create a mapping "map" that maps the array elements accessed by the 
+ * The access is already transformed to scheduling domains.
+ * We first create a mapping "next_element"that maps the accessed
+ * elements to the elements with a stride of one.
+ * Then, we create a mapping "map" that maps the array elements accessed by the
  * current iteration to the elements accssed by the next iteration.
- * We examine if the access is stride-1 by testing if map is the subset of 
+ * We examine if the access is stride-1 by testing if map is the subset of
  * "next_element".
  */
-isl_bool access_is_stride_one(__isl_keep isl_map *access, int pos)
-{
+isl_bool access_is_stride_one(__isl_keep isl_map *access, int pos) {
   isl_space *space;
   int dim;
   isl_map *next_element, *map, *next_iter;
@@ -292,8 +280,7 @@ isl_bool access_is_stride_one(__isl_keep isl_map *access, int pos)
   empty = isl_map_is_empty(map);
   isl_map_free(map);
 
-  if (empty < 0 || empty)
-  {
+  if (empty < 0 || empty) {
     isl_map_free(next_element);
     return empty;
   }
@@ -308,8 +295,7 @@ isl_bool access_is_stride_one(__isl_keep isl_map *access, int pos)
   //#endif
   map = isl_map_apply_domain(next_iter, isl_map_copy(access));
   map = isl_map_apply_range(map, isl_map_copy(access));
-  if (isl_map_is_empty(map))
-  {
+  if (isl_map_is_empty(map)) {
     isl_map_free(next_element);
     isl_map_free(map);
     return isl_bool_false;
@@ -333,23 +319,15 @@ isl_bool access_is_stride_one(__isl_keep isl_map *access, int pos)
  * AutoSA dep
  ****************************************************************/
 /* Free up the dependence. */
-void *autosa_dep_free(__isl_take struct autosa_dep *dep)
-{
-  if (!dep)
-    return NULL;
+void *autosa_dep_free(__isl_take struct autosa_dep *dep) {
+  if (!dep) return NULL;
 
-  if (dep->src)
-    dep->src = isl_id_free(dep->src);
-  if (dep->dest)
-    dep->dest = isl_id_free(dep->dest);
-  if (dep->disvec)
-    isl_vec_free(dep->disvec);
-  if (dep->src_sched_domain)
-    isl_set_free(dep->src_sched_domain);
-  if (dep->dest_sched_domain)
-    isl_set_free(dep->dest_sched_domain);
-  if (dep->isl_dep)
-    isl_basic_map_free(dep->isl_dep);
+  if (dep->src) dep->src = isl_id_free(dep->src);
+  if (dep->dest) dep->dest = isl_id_free(dep->dest);
+  if (dep->disvec) isl_vec_free(dep->disvec);
+  if (dep->src_sched_domain) isl_set_free(dep->src_sched_domain);
+  if (dep->dest_sched_domain) isl_set_free(dep->dest_sched_domain);
+  if (dep->isl_dep) isl_basic_map_free(dep->isl_dep);
 
   free(dep);
 
@@ -360,12 +338,10 @@ void *autosa_dep_free(__isl_take struct autosa_dep *dep)
  * AutoSA array
  ****************************************************************/
 
-static void free_array_info(struct autosa_prog *prog)
-{
+static void free_array_info(struct autosa_prog *prog) {
   int i;
 
-  for (i = 0; i < prog->n_array; ++i)
-  {
+  for (i = 0; i < prog->n_array; ++i) {
     free(prog->array[i].type);
     free(prog->array[i].name);
     isl_multi_pw_aff_free(prog->array[i].bound);
@@ -386,21 +362,17 @@ static void free_array_info(struct autosa_prog *prog)
  * An array containing structures is never considered to be a scalar.
  */
 static int is_read_only_scalar(struct autosa_array_info *array,
-                               struct autosa_prog *prog)
-{
+                               struct autosa_prog *prog) {
   isl_set *space;
   isl_union_map *write;
   int empty;
 
-  if (array->has_compound_element)
-    return 0;
-  if (array->n_index != 0)
-    return 0;
+  if (array->has_compound_element) return 0;
+  if (array->n_index != 0) return 0;
 
   write = isl_union_map_copy(prog->may_write);
   space = isl_set_universe(isl_space_copy(array->space));
-  write = isl_union_map_intersect_range(write,
-                                        isl_union_set_from_set(space));
+  write = isl_union_map_intersect_range(write, isl_union_set_from_set(space));
   empty = isl_union_map_is_empty(write);
   isl_union_map_free(write);
 
@@ -419,8 +391,7 @@ static int is_read_only_scalar(struct autosa_array_info *array,
  * it may be larger than the piece of the array that is being accessed.
  */
 static __isl_give isl_set *compute_extent(struct pet_array *array,
-                                          __isl_keep isl_set *accessed)
-{
+                                          __isl_keep isl_set *accessed) {
   int n_index;
   isl_id *id;
   isl_set *outer;
@@ -429,8 +400,7 @@ static __isl_give isl_set *compute_extent(struct pet_array *array,
   extent = isl_set_copy(array->extent);
 
   n_index = isl_set_dim(accessed, isl_dim_set);
-  if (n_index == 0)
-    return extent;
+  if (n_index == 0) return extent;
 
   extent = isl_set_project_out(extent, isl_dim_set, 0, 1);
   outer = isl_set_copy(accessed);
@@ -444,8 +414,7 @@ static __isl_give isl_set *compute_extent(struct pet_array *array,
 
 /* Return the name of the outer array (of structs) accessed by "access".
  */
-static const char *get_outer_array_name(__isl_keep isl_map *access)
-{
+static const char *get_outer_array_name(__isl_keep isl_map *access) {
   isl_space *space;
   const char *name;
 
@@ -462,43 +431,35 @@ static const char *get_outer_array_name(__isl_keep isl_map *access)
  * in array->refs.
  */
 static isl_stat collect_references(struct autosa_prog *prog,
-                                   struct autosa_array_info *array)
-{
+                                   struct autosa_array_info *array) {
   int i;
   int n;
 
   n = 0;
-  for (i = 0; i < prog->n_stmts; ++i)
-  {
+  for (i = 0; i < prog->n_stmts; ++i) {
     struct autosa_stmt *stmt = &prog->stmts[i];
     struct autosa_stmt_access *access;
 
-    for (access = stmt->accesses; access; access = access->next)
-    {
+    for (access = stmt->accesses; access; access = access->next) {
       const char *name;
       name = get_outer_array_name(access->access);
-      if (name && !strcmp(array->name, name))
-        n++;
+      if (name && !strcmp(array->name, name)) n++;
     }
   }
 
   array->refs = isl_alloc_array(prog->ctx, struct autosa_stmt_access *, n);
-  if (!array->refs)
-    return isl_stat_error;
+  if (!array->refs) return isl_stat_error;
   array->n_ref = n;
 
   n = 0;
-  for (i = 0; i < prog->n_stmts; ++i)
-  {
+  for (i = 0; i < prog->n_stmts; ++i) {
     struct autosa_stmt *stmt = &prog->stmts[i];
     struct autosa_stmt_access *access;
 
-    for (access = stmt->accesses; access; access = access->next)
-    {
+    for (access = stmt->accesses; access; access = access->next) {
       const char *name;
       name = get_outer_array_name(access->access);
-      if (!name || strcmp(array->name, name))
-        continue;
+      if (!name || strcmp(array->name, name)) continue;
 
       array->refs[n++] = access;
     }
@@ -510,13 +471,11 @@ static isl_stat collect_references(struct autosa_prog *prog,
 /* Is "array" only accessed as individual, fixed elements?
  * That is, does each access to "array" access a single, fixed element?
  */
-static isl_bool only_fixed_element_accessed(struct autosa_array_info *array)
-{
+static isl_bool only_fixed_element_accessed(struct autosa_array_info *array) {
   int i;
 
   for (i = 0; i < array->n_ref; ++i)
-    if (!array->refs[i]->fixed_element)
-      return isl_bool_false;
+    if (!array->refs[i]->fixed_element) return isl_bool_false;
 
   return isl_bool_true;
 }
@@ -531,9 +490,9 @@ static isl_bool only_fixed_element_accessed(struct autosa_array_info *array)
  * We also check whether the array is accessed at all.
  */
 static isl_stat extract_array_info(struct autosa_prog *prog,
-                                   struct autosa_array_info *info, struct pet_array *pa,
-                                   __isl_keep isl_union_set *arrays)
-{
+                                   struct autosa_array_info *info,
+                                   struct pet_array *pa,
+                                   __isl_keep isl_union_set *arrays) {
   int empty;
   const char *name;
   int n_index;
@@ -555,25 +514,20 @@ static isl_stat extract_array_info(struct autosa_prog *prog,
   info->read_only_scalar = is_read_only_scalar(info, prog);
 
   info->declared_extent = isl_set_copy(pa->extent);
-  accessed = isl_union_set_extract_set(arrays,
-                                       isl_space_copy(info->space));
+  accessed = isl_union_set_extract_set(arrays, isl_space_copy(info->space));
   empty = isl_set_is_empty(accessed);
   extent = compute_extent(pa, accessed);
   isl_set_free(accessed);
   info->extent = extent;
-  if (empty < 0)
-    return isl_stat_error;
+  if (empty < 0) return isl_stat_error;
   info->accessed = !empty;
   bounds = ppcg_size_from_extent(isl_set_copy(extent));
   bounds = isl_multi_pw_aff_gist(bounds, isl_set_copy(prog->context));
-  if (!bounds)
-    return isl_stat_error;
-  if (!isl_multi_pw_aff_is_cst(bounds))
-    info->linearize = 1;
+  if (!bounds) return isl_stat_error;
+  if (!isl_multi_pw_aff_is_cst(bounds)) info->linearize = 1;
   info->bound = bounds;
 
-  if (collect_references(prog, info) < 0)
-    return isl_stat_error;
+  if (collect_references(prog, info) < 0) return isl_stat_error;
   info->only_fixed_element = only_fixed_element_accessed(info);
 
   /* AutoSA Extended */
@@ -603,19 +557,16 @@ static isl_stat extract_array_info(struct autosa_prog *prog,
  * considered coincident so we should indeed remove those constraints
  * from the order constraints.
  */
-static __isl_give isl_union_map *remove_independences(struct autosa_prog *prog,
-                                                      struct autosa_array_info *array, __isl_take isl_union_map *order)
-{
+static __isl_give isl_union_map *remove_independences(
+    struct autosa_prog *prog, struct autosa_array_info *array,
+    __isl_take isl_union_map *order) {
   int i;
 
-  for (i = 0; i < prog->scop->pet->n_independence; ++i)
-  {
+  for (i = 0; i < prog->scop->pet->n_independence; ++i) {
     struct pet_independence *pi = prog->scop->pet->independences[i];
-    if (isl_union_set_contains(pi->local, array->space))
-      continue;
+    if (isl_union_set_contains(pi->local, array->space)) continue;
 
-    order = isl_union_map_subtract(order,
-                                   isl_union_map_copy(pi->filter));
+    order = isl_union_map_subtract(order, isl_union_map_copy(pi->filter));
   }
 
   return order;
@@ -625,10 +576,8 @@ static __isl_give isl_union_map *remove_independences(struct autosa_prog *prog,
  * That is, is it only accessed as individual elements with
  * constant index expressions?
  */
-static isl_bool autosa_array_can_be_private(struct autosa_array_info *array)
-{
-  if (!array)
-    return isl_bool_error;
+static isl_bool autosa_array_can_be_private(struct autosa_array_info *array) {
+  if (!array) return isl_bool_error;
   return array->only_fixed_element ? isl_bool_true : isl_bool_false;
 }
 
@@ -642,8 +591,7 @@ static isl_bool autosa_array_can_be_private(struct autosa_array_info *array)
  * Additionally, store the union of these array->dep_order relations
  * for all arrays that cannot be mapped to private memory in prog->array_order.
  */
-static void collect_order_dependences(struct autosa_prog *prog)
-{
+static void collect_order_dependences(struct autosa_prog *prog) {
   int i;
   isl_space *space;
   isl_union_map *accesses;
@@ -652,14 +600,13 @@ static void collect_order_dependences(struct autosa_prog *prog)
   prog->array_order = isl_union_map_empty(space);
 
   accesses = isl_union_map_copy(prog->scop->tagged_reads);
-  accesses = isl_union_map_union(accesses,
-                                 isl_union_map_copy(prog->scop->tagged_may_writes));
+  accesses = isl_union_map_union(
+      accesses, isl_union_map_copy(prog->scop->tagged_may_writes));
   accesses = isl_union_map_universe(accesses);
-  accesses = isl_union_map_apply_range(accesses,
-                                       isl_union_map_copy(prog->to_outer));
+  accesses =
+      isl_union_map_apply_range(accesses, isl_union_map_copy(prog->to_outer));
 
-  for (i = 0; i < prog->n_array; ++i)
-  {
+  for (i = 0; i < prog->n_array; ++i) {
     struct autosa_array_info *array = &prog->array[i];
     isl_set *set;
     isl_union_set *uset;
@@ -668,8 +615,7 @@ static void collect_order_dependences(struct autosa_prog *prog)
     set = isl_set_universe(isl_space_copy(array->space));
     uset = isl_union_set_from_set(set);
     uset = isl_union_map_domain(
-        isl_union_map_intersect_range(isl_union_map_copy(accesses),
-                                      uset));
+        isl_union_map_intersect_range(isl_union_map_copy(accesses), uset));
     order = isl_union_map_copy(prog->scop->tagged_dep_order);
     order = isl_union_map_intersect_domain(order, uset);
     order = isl_union_map_zip(order);
@@ -677,11 +623,10 @@ static void collect_order_dependences(struct autosa_prog *prog)
     order = remove_independences(prog, array, order);
     array->dep_order = order;
 
-    if (autosa_array_can_be_private(array))
-      continue;
+    if (autosa_array_can_be_private(array)) continue;
 
-    prog->array_order = isl_union_map_union(prog->array_order,
-                                            isl_union_map_copy(array->dep_order));
+    prog->array_order = isl_union_map_union(
+        prog->array_order, isl_union_map_copy(array->dep_order));
   }
 
   isl_union_map_free(accesses);
@@ -689,52 +634,45 @@ static void collect_order_dependences(struct autosa_prog *prog)
 
 /* Construct a autosa_array_info for each array referenced by prog->scop and
  * collect them in prog->array.
- * 
+ *
  * The sizes are based on the extents and the set of possibly accessed
  * elements by "prog".
  * If there are any member accesses involved, then they are first mapped
  * to the outer arrays of structs.
  * Only extract autosa_array_info entries for these outer arrays.
- * 
- * If we are allowing live range reordering, then also set 
+ *
+ * If we are allowing live range reordering, then also set
  * the dep_order field. Otherwise leave it NULL.
  */
-isl_stat collect_array_info(struct autosa_prog *prog)
-{
+isl_stat collect_array_info(struct autosa_prog *prog) {
   int i;
   isl_stat r = isl_stat_ok;
   isl_union_set *arrays;
 
   prog->n_array = 0;
-  prog->array = isl_calloc_array(prog->ctx,
-                                 struct autosa_array_info, prog->scop->pet->n_array);
-  if (!prog->array)
-    return isl_stat_error;
+  prog->array = isl_calloc_array(prog->ctx, struct autosa_array_info,
+                                 prog->scop->pet->n_array);
+  if (!prog->array) return isl_stat_error;
 
   arrays = isl_union_map_range(isl_union_map_copy(prog->read));
-  arrays = isl_union_set_union(arrays,
-                               isl_union_map_range(isl_union_map_copy(prog->may_write)));
+  arrays = isl_union_set_union(
+      arrays, isl_union_map_range(isl_union_map_copy(prog->may_write)));
 
-  arrays = isl_union_set_apply(arrays,
-                               isl_union_map_copy(prog->to_outer));
+  arrays = isl_union_set_apply(arrays, isl_union_map_copy(prog->to_outer));
 
   arrays = isl_union_set_coalesce(arrays);
 
-  for (i = 0; i < prog->scop->pet->n_array; ++i)
-  {
+  for (i = 0; i < prog->scop->pet->n_array; ++i) {
     isl_bool field;
 
     field = isl_set_is_wrapping(prog->scop->pet->arrays[i]->extent);
-    if (field < 0)
-      break;
-    if (field)
-      continue;
+    if (field < 0) break;
+    if (field) continue;
     if (extract_array_info(prog, &prog->array[prog->n_array++],
                            prog->scop->pet->arrays[i], arrays) < 0)
       r = isl_stat_error;
   }
-  if (i < prog->scop->pet->n_array)
-    r = isl_stat_error;
+  if (i < prog->scop->pet->n_array) r = isl_stat_error;
 
   isl_union_set_free(arrays);
 
@@ -746,8 +684,7 @@ isl_stat collect_array_info(struct autosa_prog *prog)
 
 /* Is "array" a read-only scalar?
  */
-int autosa_array_is_read_only_scalar(struct autosa_array_info *array)
-{
+int autosa_array_is_read_only_scalar(struct autosa_array_info *array) {
   return array->read_only_scalar;
 }
 
@@ -756,8 +693,7 @@ int autosa_array_is_read_only_scalar(struct autosa_array_info *array)
  * At the moment, scalars are represented as zero-dimensional arrays.
  * Note that the single data element may be an entire structure.
  */
-int autosa_array_is_scalar(struct autosa_array_info *array)
-{
+int autosa_array_is_scalar(struct autosa_array_info *array) {
   return array->n_index == 0;
 }
 
@@ -765,8 +701,7 @@ int autosa_array_is_scalar(struct autosa_array_info *array)
  *
  * The argument is only needed if the kernel accesses this device memory.
  */
-int autosa_kernel_requires_array_argument(struct autosa_kernel *kernel, int i)
-{
+int autosa_kernel_requires_array_argument(struct autosa_kernel *kernel, int i) {
   return kernel->array[i].global;
 }
 
@@ -777,15 +712,12 @@ int autosa_kernel_requires_array_argument(struct autosa_kernel *kernel, int i)
  * to point to a newly allocated array.
  */
 struct autosa_array_ref_group *autosa_array_ref_group_free(
-    struct autosa_array_ref_group *group)
-{
-  if (!group)
-    return NULL;
-  autosa_array_tile_free(group->local_tile); // TODO: fix it
+    struct autosa_array_ref_group *group) {
+  if (!group) return NULL;
+  autosa_array_tile_free(group->local_tile);  // TODO: fix it
   autosa_array_tile_free(group->pe_tile);
   isl_map_free(group->access);
-  if (group->n_ref > 1)
-    free(group->refs);
+  if (group->n_ref > 1) free(group->refs);
   isl_vec_free(group->dir);
   isl_vec_free(group->old_dir);
   isl_multi_aff_free(group->io_trans);
@@ -794,8 +726,7 @@ struct autosa_array_ref_group *autosa_array_ref_group_free(
   isl_ast_expr_free(group->io_L1_pe_expr);
   isl_ast_expr_free(group->io_pe_expr_boundary);
   isl_ast_expr_free(group->io_L1_pe_expr_boundary);
-  for (int i = 0; i < group->n_io_buffer; i++)
-  {
+  for (int i = 0; i < group->n_io_buffer; i++) {
     autosa_array_tile_free(group->io_buffers[i]->tile);
     free(group->io_buffers[i]);
   }
@@ -811,15 +742,13 @@ struct autosa_array_ref_group *autosa_array_ref_group_free(
   return NULL;
 }
 
-struct autosa_array_tile *autosa_array_tile_free(struct autosa_array_tile *tile)
-{
+struct autosa_array_tile *autosa_array_tile_free(
+    struct autosa_array_tile *tile) {
   int j;
 
-  if (!tile)
-    return NULL;
+  if (!tile) return NULL;
 
-  for (j = 0; j < tile->n; ++j)
-  {
+  for (j = 0; j < tile->n; ++j) {
     isl_val_free(tile->bound[j].size);
     isl_val_free(tile->bound[j].stride);
     isl_aff_free(tile->bound[j].lb);
@@ -834,24 +763,20 @@ struct autosa_array_tile *autosa_array_tile_free(struct autosa_array_tile *tile)
 
 /* Create a autosa_array_tile for an array of dimension "n_index".
  */
-struct autosa_array_tile *autosa_array_tile_create(isl_ctx *ctx, int n_index)
-{
+struct autosa_array_tile *autosa_array_tile_create(isl_ctx *ctx, int n_index) {
   int i;
   struct autosa_array_tile *tile;
 
   tile = isl_calloc_type(ctx, struct autosa_array_tile);
-  if (!tile)
-    return NULL;
+  if (!tile) return NULL;
 
   tile->ctx = ctx;
   tile->bound = isl_alloc_array(ctx, struct autosa_array_bound, n_index);
-  if (!tile->bound)
-    return autosa_array_tile_free(tile);
+  if (!tile->bound) return autosa_array_tile_free(tile);
 
   tile->n = n_index;
 
-  for (i = 0; i < n_index; ++i)
-  {
+  for (i = 0; i < n_index; ++i) {
     tile->bound[i].size = NULL;
     tile->bound[i].lb = NULL;
     tile->bound[i].stride = NULL;
@@ -864,8 +789,7 @@ struct autosa_array_tile *autosa_array_tile_create(isl_ctx *ctx, int n_index)
 /****************************************************************
  * AutoSA statement
  ****************************************************************/
-static void *free_autosa_io_info(struct autosa_io_info *io_info)
-{
+static void *free_autosa_io_info(struct autosa_io_info *io_info) {
   autosa_dep_free(io_info->dep);
   isl_vec_free(io_info->dir);
   isl_vec_free(io_info->old_dir);
@@ -874,19 +798,15 @@ static void *free_autosa_io_info(struct autosa_io_info *io_info)
   return NULL;
 }
 
-static void *free_stmts(struct autosa_stmt *stmts, int n)
-{
+static void *free_stmts(struct autosa_stmt *stmts, int n) {
   int i;
 
-  if (!stmts)
-    return NULL;
+  if (!stmts) return NULL;
 
-  for (i = 0; i < n; ++i)
-  {
+  for (i = 0; i < n; ++i) {
     struct autosa_stmt_access *access, *next;
 
-    for (access = stmts[i].accesses; access; access = next)
-    {
+    for (access = stmts[i].accesses; access; access = next) {
       next = access->next;
       isl_id_free(access->ref_id);
       isl_map_free(access->access);
@@ -910,14 +830,12 @@ static void *free_stmts(struct autosa_stmt *stmts, int n)
  * That is, is the instance set of "scop" free from any
  * instances of "stmt"?
  */
-static isl_bool is_stmt_killed(struct ppcg_scop *scop, struct pet_stmt *stmt)
-{
+static isl_bool is_stmt_killed(struct ppcg_scop *scop, struct pet_stmt *stmt) {
   isl_space *space;
   isl_set *left;
   isl_bool empty;
 
-  if (!scop || !stmt)
-    return isl_bool_error;
+  if (!scop || !stmt) return isl_bool_error;
   space = isl_set_get_space(stmt->domain);
   left = isl_union_set_extract_set(scop->domain, space);
   empty = isl_set_plain_is_empty(left);
@@ -943,18 +861,15 @@ static isl_bool is_stmt_killed(struct ppcg_scop *scop, struct pet_stmt *stmt)
  * if the access relation is empty.
  */
 static __isl_give isl_map *extract_single_tagged_access(
-    __isl_take isl_union_map *tagged, __isl_keep pet_expr *expr)
-{
+    __isl_take isl_union_map *tagged, __isl_keep pet_expr *expr) {
   int empty;
   isl_id *id;
   isl_space *space, *space2;
   isl_multi_pw_aff *index;
 
   empty = isl_union_map_is_empty(tagged);
-  if (empty < 0)
-    goto error;
-  if (!empty)
-    return isl_map_from_union_map(tagged);
+  if (empty < 0) goto error;
+  if (!empty) return isl_map_from_union_map(tagged);
   isl_union_map_free(tagged);
 
   index = pet_expr_access_get_index(expr);
@@ -987,8 +902,7 @@ error:
  * and a single element is being accessed.
  */
 static isl_bool complete_index(__isl_keep pet_expr *expr,
-                               __isl_keep isl_multi_pw_aff *index)
-{
+                               __isl_keep isl_multi_pw_aff *index) {
   isl_union_map *read, *write, *all;
   isl_map *map;
   isl_space *space1, *space2;
@@ -997,10 +911,8 @@ static isl_bool complete_index(__isl_keep pet_expr *expr,
   read = pet_expr_access_get_may_read(expr);
   write = pet_expr_access_get_may_write(expr);
   all = isl_union_map_union(read, write);
-  if (!all)
-    return isl_bool_error;
-  if (isl_union_map_n_map(all) != 1)
-  {
+  if (!all) return isl_bool_error;
+  if (isl_union_map_n_map(all) != 1) {
     isl_union_map_free(all);
     return isl_bool_false;
   }
@@ -1008,8 +920,7 @@ static isl_bool complete_index(__isl_keep pet_expr *expr,
   space1 = isl_map_get_space(map);
   isl_map_free(map);
   space2 = isl_multi_pw_aff_get_space(index);
-  complete = isl_space_tuple_is_equal(space1, isl_dim_out,
-                                      space2, isl_dim_out);
+  complete = isl_space_tuple_is_equal(space1, isl_dim_out, space2, isl_dim_out);
   isl_space_free(space1);
   isl_space_free(space2);
 
@@ -1023,30 +934,24 @@ static isl_bool complete_index(__isl_keep pet_expr *expr,
  * Note that it is not sufficient for the index expression to be
  * piecewise constant.  isl_multi_pw_aff_is_cst can therefore not be used.
  */
-static isl_bool accesses_fixed_element(__isl_keep pet_expr *expr)
-{
+static isl_bool accesses_fixed_element(__isl_keep pet_expr *expr) {
   int i, n;
   isl_multi_pw_aff *index;
   isl_bool fixed = isl_bool_true;
 
   index = pet_expr_access_get_index(expr);
-  if (index < 0)
-    return isl_bool_error;
+  if (index < 0) return isl_bool_error;
   n = isl_multi_pw_aff_dim(index, isl_dim_out);
-  for (i = 0; i < n; ++i)
-  {
+  for (i = 0; i < n; ++i) {
     isl_pw_aff *pa;
 
     pa = isl_multi_pw_aff_get_pw_aff(index, 0);
     fixed = (isl_pw_aff_n_piece(pa) == 1) ? isl_bool_true : isl_bool_false;
-    if (fixed)
-      fixed = isl_pw_aff_is_cst(pa);
+    if (fixed) fixed = isl_pw_aff_is_cst(pa);
     isl_pw_aff_free(pa);
-    if (fixed < 0 || !fixed)
-      break;
+    if (fixed < 0 || !fixed) break;
   }
-  if (fixed >= 0 && fixed)
-    fixed = complete_index(expr, index);
+  if (fixed >= 0 && fixed) fixed = complete_index(expr, index);
   isl_multi_pw_aff_free(index);
 
   return fixed;
@@ -1063,35 +968,29 @@ static isl_bool accesses_fixed_element(__isl_keep pet_expr *expr)
  * therefore from a single index expression.  These accesses therefore
  * all map to the same outer array.
  */
-static int extract_access(__isl_keep pet_expr *expr, void *user)
-{
-  struct ppcg_extract_access_data *data = (struct ppcg_extract_access_data *)user;
+static int extract_access(__isl_keep pet_expr *expr, void *user) {
+  struct ppcg_extract_access_data *data =
+      (struct ppcg_extract_access_data *)user;
   isl_union_map *tagged;
   struct autosa_stmt_access *access;
   isl_ctx *ctx = pet_expr_get_ctx(expr);
   isl_multi_pw_aff *index;
 
   access = isl_alloc_type(ctx, struct autosa_stmt_access);
-  if (!access)
-    return -1;
+  if (!access) return -1;
   access->next = NULL;
   access->read = pet_expr_access_is_read(expr);
   access->write = pet_expr_access_is_write(expr);
   tagged = pet_expr_access_get_tagged_may_read(expr);
-  tagged = isl_union_map_union(tagged,
-                               pet_expr_access_get_tagged_may_write(expr));
-  tagged = isl_union_map_apply_range(tagged,
-                                     isl_union_map_copy(data->any_to_outer));
-  if (!access->write)
-  {
+  tagged =
+      isl_union_map_union(tagged, pet_expr_access_get_tagged_may_write(expr));
+  tagged =
+      isl_union_map_apply_range(tagged, isl_union_map_copy(data->any_to_outer));
+  if (!access->write) {
     access->exact_write = 1;
-  }
-  else if (!data->single_expression)
-  {
+  } else if (!data->single_expression) {
     access->exact_write = 0;
-  }
-  else
-  {
+  } else {
     isl_union_map *must, *may;
     may = isl_union_map_copy(tagged);
     may = isl_union_map_domain_factor_domain(may);
@@ -1120,8 +1019,7 @@ static int extract_access(__isl_keep pet_expr *expr, void *user)
   *data->next_access = access;
   data->next_access = &(*data->next_access)->next;
 
-  if (!access->access || access->fixed_element < 0)
-    return -1;
+  if (!access->access || access->fixed_element < 0) return -1;
 
   return 0;
 }
@@ -1131,44 +1029,36 @@ static int extract_access(__isl_keep pet_expr *expr, void *user)
  * "any_to_outer" maps all intermediate arrays to their outer arrays.
  */
 static int pet_stmt_extract_accesses(struct autosa_stmt *stmt,
-                                     __isl_keep isl_union_map *any_to_outer)
-{
+                                     __isl_keep isl_union_map *any_to_outer) {
   struct ppcg_extract_access_data data;
 
   stmt->accesses = NULL;
   data.next_access = &stmt->accesses;
-  data.single_expression =
-      pet_tree_get_type(stmt->stmt->body) == pet_tree_expr;
+  data.single_expression = pet_tree_get_type(stmt->stmt->body) == pet_tree_expr;
   data.any_to_outer = any_to_outer;
-  return pet_tree_foreach_access_expr(stmt->stmt->body,
-                                      &extract_access, &data);
+  return pet_tree_foreach_access_expr(stmt->stmt->body, &extract_access, &data);
 }
 
 /* Return an array of autosa_stmt representing the statements in "scop".
  * Do not collect array accesses for statements that have been killed.
  */
 struct autosa_stmt *extract_stmts(isl_ctx *ctx, struct ppcg_scop *scop,
-                                  __isl_keep isl_union_map *any_to_outer)
-{
+                                  __isl_keep isl_union_map *any_to_outer) {
   int i;
   struct autosa_stmt *stmts;
 
   stmts = isl_calloc_array(ctx, struct autosa_stmt, scop->pet->n_stmt);
-  if (!stmts)
-    return NULL;
+  if (!stmts) return NULL;
 
-  for (i = 0; i < scop->pet->n_stmt; ++i)
-  {
+  for (i = 0; i < scop->pet->n_stmt; ++i) {
     struct autosa_stmt *s = &stmts[i];
     isl_bool killed;
 
     s->id = isl_set_get_tuple_id(scop->pet->stmts[i]->domain);
     s->stmt = scop->pet->stmts[i];
     killed = is_stmt_killed(scop, scop->pet->stmts[i]);
-    if (killed < 0)
-      return (struct autosa_stmt *)free_stmts(stmts, i + 1);
-    if (killed)
-      continue;
+    if (killed < 0) return (struct autosa_stmt *)free_stmts(stmts, i + 1);
+    if (killed) continue;
     if (pet_stmt_extract_accesses(s, any_to_outer) < 0)
       return (struct autosa_stmt *)free_stmts(stmts, i + 1);
   }
@@ -1176,46 +1066,43 @@ struct autosa_stmt *extract_stmts(isl_ctx *ctx, struct ppcg_scop *scop,
   return stmts;
 }
 
-void autosa_kernel_stmt_free(void *user)
-{
+void autosa_kernel_stmt_free(void *user) {
   struct autosa_kernel_stmt *stmt = (struct autosa_kernel_stmt *)user;
 
-  if (!stmt)
-    return;
+  if (!stmt) return;
 
-  switch (stmt->type)
-  {
-  case AUTOSA_KERNEL_STMT_COPY:
-    isl_ast_expr_free(stmt->u.c.index);
-    isl_ast_expr_free(stmt->u.c.local_index);
-    break;
-  case AUTOSA_KERNEL_STMT_DOMAIN:
-    isl_id_to_ast_expr_free(stmt->u.d.ref2expr);
-    break;
-  case AUTOSA_KERNEL_STMT_SYNC:
-    break;
-  case AUTOSA_KERNEL_STMT_IO:
-  case AUTOSA_KERNEL_STMT_IO_TRANSFER:
-  case AUTOSA_KERNEL_STMT_IO_TRANSFER_BUF:
-  case AUTOSA_KERNEL_STMT_IO_DRAM:    
-    free(stmt->u.i.in_fifo_name);
-    free(stmt->u.i.out_fifo_name);
-    isl_ast_expr_free(stmt->u.i.local_index);
-    isl_ast_expr_free(stmt->u.i.index);
-    free(stmt->u.i.reduce_op);
-    break;
-  case AUTOSA_KERNEL_STMT_MODULE_CALL:
-  case AUTOSA_KERNEL_STMT_EXT_MODULE:
-    free(stmt->u.m.module_name);
-    break;
-  case AUTOSA_KERNEL_STMT_FIFO_DECL:
-    break;
-  case AUTOSA_KERNEL_STMT_DRAIN_MERGE:
-    isl_ast_expr_free(stmt->u.dm.index);
-    break;
-  case AUTOSA_KERNEL_STMT_HOST_SERIALIZE:
-    isl_ast_expr_free(stmt->u.s.index);
-    break;
+  switch (stmt->type) {
+    case AUTOSA_KERNEL_STMT_COPY:
+      isl_ast_expr_free(stmt->u.c.index);
+      isl_ast_expr_free(stmt->u.c.local_index);
+      break;
+    case AUTOSA_KERNEL_STMT_DOMAIN:
+      isl_id_to_ast_expr_free(stmt->u.d.ref2expr);
+      break;
+    case AUTOSA_KERNEL_STMT_SYNC:
+      break;
+    case AUTOSA_KERNEL_STMT_IO:
+    case AUTOSA_KERNEL_STMT_IO_TRANSFER:
+    case AUTOSA_KERNEL_STMT_IO_TRANSFER_BUF:
+    case AUTOSA_KERNEL_STMT_IO_DRAM:
+      free(stmt->u.i.in_fifo_name);
+      free(stmt->u.i.out_fifo_name);
+      isl_ast_expr_free(stmt->u.i.local_index);
+      isl_ast_expr_free(stmt->u.i.index);
+      free(stmt->u.i.reduce_op);
+      break;
+    case AUTOSA_KERNEL_STMT_MODULE_CALL:
+    case AUTOSA_KERNEL_STMT_EXT_MODULE:
+      free(stmt->u.m.module_name);
+      break;
+    case AUTOSA_KERNEL_STMT_FIFO_DECL:
+      break;
+    case AUTOSA_KERNEL_STMT_DRAIN_MERGE:
+      isl_ast_expr_free(stmt->u.dm.index);
+      break;
+    case AUTOSA_KERNEL_STMT_HOST_SERIALIZE:
+      isl_ast_expr_free(stmt->u.s.index);
+      break;
   }
 
   free(stmt);
@@ -1224,14 +1111,11 @@ void autosa_kernel_stmt_free(void *user)
 /* Find the element in gen->stmt that has the given "id".
  * Return NULL if no such autosa_stmt can be found.
  */
-struct autosa_stmt *find_stmt(struct autosa_prog *prog, __isl_keep isl_id *id)
-{
+struct autosa_stmt *find_stmt(struct autosa_prog *prog, __isl_keep isl_id *id) {
   int i;
 
-  for (i = 0; i < prog->n_stmts; ++i)
-  {
-    if (id == prog->stmts[i].id)
-      break;
+  for (i = 0; i < prog->n_stmts; ++i) {
+    if (id == prog->stmts[i].id) break;
   }
 
   return i < prog->n_stmts ? &prog->stmts[i] : NULL;
@@ -1245,28 +1129,25 @@ struct autosa_stmt *find_stmt(struct autosa_prog *prog, __isl_keep isl_id *id)
  * arrays that are not local to "prog" and remove those elements that
  * are definitely killed or definitely written by "prog".
  */
-static __isl_give isl_union_set *compute_may_persist(struct autosa_prog *prog)
-{
+static __isl_give isl_union_set *compute_may_persist(struct autosa_prog *prog) {
   int i;
   isl_union_set *may_persist, *killed;
   isl_union_map *must_kill;
 
   may_persist = isl_union_set_empty(isl_set_get_space(prog->context));
-  for (i = 0; i < prog->n_array; ++i)
-  {
+  for (i = 0; i < prog->n_array; ++i) {
     isl_set *extent;
 
-    if (prog->array[i].local)
-      continue;
+    if (prog->array[i].local) continue;
 
     extent = isl_set_copy(prog->array[i].extent);
     may_persist = isl_union_set_add_set(may_persist, extent);
   }
 
-  may_persist = isl_union_set_intersect_params(may_persist,
-                                               isl_set_copy(prog->context));
-  may_persist = isl_union_set_apply(may_persist,
-                                    isl_union_map_copy(prog->to_inner));
+  may_persist =
+      isl_union_set_intersect_params(may_persist, isl_set_copy(prog->context));
+  may_persist =
+      isl_union_set_apply(may_persist, isl_union_map_copy(prog->to_inner));
   must_kill = isl_union_map_copy(prog->tagged_must_kill);
   killed = isl_union_map_range(must_kill);
   must_kill = isl_union_map_copy(prog->must_write);
@@ -1276,18 +1157,15 @@ static __isl_give isl_union_set *compute_may_persist(struct autosa_prog *prog)
   return may_persist;
 }
 
-struct autosa_prog *autosa_prog_alloc(isl_ctx *ctx, struct ppcg_scop *scop)
-{
+struct autosa_prog *autosa_prog_alloc(isl_ctx *ctx, struct ppcg_scop *scop) {
   struct autosa_prog *prog;
   isl_space *space;
   isl_map *id;
 
-  if (!scop)
-    return NULL;
+  if (!scop) return NULL;
 
   prog = isl_calloc_type(ctx, struct autosa_prog);
-  if (!prog)
-    return NULL;
+  if (!prog) return NULL;
 
   prog->ctx = ctx;
   prog->scop = scop;
@@ -1310,20 +1188,17 @@ struct autosa_prog *autosa_prog_alloc(isl_ctx *ctx, struct ppcg_scop *scop)
   prog->to_outer = isl_union_map_copy(prog->to_inner);
   prog->to_outer = isl_union_map_reverse(prog->to_outer);
 
-  if (!prog->stmts)
-    return (struct autosa_prog *)autosa_prog_free(prog);
+  if (!prog->stmts) return (struct autosa_prog *)autosa_prog_free(prog);
 
   if (collect_array_info(prog) < 0)
     return (struct autosa_prog *)autosa_prog_free(prog);
-  prog->may_persist = compute_may_persist(prog); // TODO
+  prog->may_persist = compute_may_persist(prog);  // TODO
 
   return prog;
 }
 
-void *autosa_prog_free(struct autosa_prog *prog)
-{
-  if (!prog)
-    return NULL;
+void *autosa_prog_free(struct autosa_prog *prog) {
+  if (!prog) return NULL;
   free_array_info(prog);
   free_stmts(prog->stmts, prog->n_stmts);
   isl_union_map_free(prog->any_to_outer);
@@ -1344,10 +1219,9 @@ void *autosa_prog_free(struct autosa_prog *prog)
 /****************************************************************
  * AutoSA hw module
  ****************************************************************/
-struct autosa_hw_module *autosa_hw_module_alloc(struct autosa_gen *gen)
-{
-  struct autosa_hw_module *module = (struct autosa_hw_module *)malloc(
-      sizeof(struct autosa_hw_module));
+struct autosa_hw_module *autosa_hw_module_alloc(struct autosa_gen *gen) {
+  struct autosa_hw_module *module =
+      (struct autosa_hw_module *)malloc(sizeof(struct autosa_hw_module));
   module->options = gen->options;
   module->name = NULL;
   module->tree = NULL;
@@ -1391,10 +1265,8 @@ struct autosa_hw_module *autosa_hw_module_alloc(struct autosa_gen *gen)
   return module;
 }
 
-void *autosa_hw_module_free(struct autosa_hw_module *module)
-{
-  if (!module)
-    return NULL;
+void *autosa_hw_module_free(struct autosa_hw_module *module) {
+  if (!module) return NULL;
 
   free(module->name);
 
@@ -1412,15 +1284,13 @@ void *autosa_hw_module_free(struct autosa_hw_module *module)
   isl_space_free(module->space);
 
   isl_id_list_free(module->inst_ids);
-  for (int i = 0; i < module->n_var; i++)
-  {
+  for (int i = 0; i < module->n_var; i++) {
     free(module->var[i].name);
     isl_vec_free(module->var[i].size);
   }
   free(module->var);
   free(module->io_groups);
-  for (int i = 0; i < module->n_pe_dummy_modules; i++)
-  {
+  for (int i = 0; i < module->n_pe_dummy_modules; i++) {
     autosa_pe_dummy_module_free(module->pe_dummy_modules[i]);
   }
   free(module->pe_dummy_modules);
@@ -1430,8 +1300,7 @@ void *autosa_hw_module_free(struct autosa_hw_module *module)
   return NULL;
 }
 
-struct autosa_hw_top_module *autosa_hw_top_module_alloc()
-{
+struct autosa_hw_top_module *autosa_hw_top_module_alloc() {
   struct autosa_hw_top_module *module = (struct autosa_hw_top_module *)malloc(
       sizeof(struct autosa_hw_top_module));
 
@@ -1461,56 +1330,42 @@ struct autosa_hw_top_module *autosa_hw_top_module_alloc()
   return module;
 }
 
-void *autosa_hw_top_module_free(struct autosa_hw_top_module *module)
-{
-  if (!module)
-    return NULL;
+void *autosa_hw_top_module_free(struct autosa_hw_top_module *module) {
+  if (!module) return NULL;
 
-  if (module->module_call_trees)
-  {
-    for (int i = 0; i < module->n_module_calls; i++)
-    {
+  if (module->module_call_trees) {
+    for (int i = 0; i < module->n_module_calls; i++) {
       isl_ast_node_free(module->module_call_trees[i]);
     }
   }
 
-  if (module->fifo_decl_trees)
-  {
-    for (int i = 0; i < module->n_fifo_decls; i++)
-    {
+  if (module->fifo_decl_trees) {
+    for (int i = 0; i < module->n_fifo_decls; i++) {
       isl_ast_node_free(module->fifo_decl_trees[i]);
       free(module->fifo_decl_names[i]);
     }
   }
 
-  if (module->module_call_wrapped_trees)
-  {
-    for (int i = 0; i < module->n_module_call_wrapped; i++)
-    {
+  if (module->module_call_wrapped_trees) {
+    for (int i = 0; i < module->n_module_call_wrapped; i++) {
       isl_ast_node_free(module->module_call_wrapped_trees[i]);
     }
   }
 
-  if (module->fifo_decl_wrapped_trees)
-  {
-    for (int i = 0; i < module->n_fifo_decl_wrapped; i++)
-    {
+  if (module->fifo_decl_wrapped_trees) {
+    for (int i = 0; i < module->n_fifo_decl_wrapped; i++) {
       isl_ast_node_free(module->fifo_decl_wrapped_trees[i]);
     }
   }
 
-  if (module->ext_module_trees)
-  {
-    for (int i = 0; i < module->n_ext_module; i++)
-    {
+  if (module->ext_module_trees) {
+    for (int i = 0; i < module->n_ext_module; i++) {
       isl_ast_node_free(module->ext_module_trees[i]);
     }
   }
 
-  if (module->ext_module_wrapped_trees)
-  {
-    for (int i = 0; i < module->n_ext_module_wrapped; i++)
-    {
+  if (module->ext_module_wrapped_trees) {
+    for (int i = 0; i < module->n_ext_module_wrapped; i++) {
       isl_ast_node_free(module->ext_module_wrapped_trees[i]);
     }
   }
@@ -1530,10 +1385,10 @@ void *autosa_hw_top_module_free(struct autosa_hw_top_module *module)
   return NULL;
 }
 
-struct autosa_pe_dummy_module *autosa_pe_dummy_module_alloc()
-{
-  struct autosa_pe_dummy_module *module = (struct autosa_pe_dummy_module *)malloc(
-      sizeof(struct autosa_pe_dummy_module));
+struct autosa_pe_dummy_module *autosa_pe_dummy_module_alloc() {
+  struct autosa_pe_dummy_module *module =
+      (struct autosa_pe_dummy_module *)malloc(
+          sizeof(struct autosa_pe_dummy_module));
   module->module = NULL;
   module->io_group = NULL;
   module->sched = NULL;
@@ -1543,10 +1398,8 @@ struct autosa_pe_dummy_module *autosa_pe_dummy_module_alloc()
   return module;
 }
 
-void *autosa_pe_dummy_module_free(struct autosa_pe_dummy_module *module)
-{
-  if (!module)
-    return NULL;
+void *autosa_pe_dummy_module_free(struct autosa_pe_dummy_module *module) {
+  if (!module) return NULL;
 
   isl_ast_node_free(module->tree);
   isl_ast_node_free(module->device_tree);
@@ -1555,10 +1408,11 @@ void *autosa_pe_dummy_module_free(struct autosa_pe_dummy_module *module)
   return NULL;
 }
 
-struct autosa_drain_merge_func *autosa_drain_merge_func_alloc(struct autosa_gen *gen)
-{
-  struct autosa_drain_merge_func *func = (struct autosa_drain_merge_func *)
-      malloc(sizeof(struct autosa_drain_merge_func));
+struct autosa_drain_merge_func *autosa_drain_merge_func_alloc(
+    struct autosa_gen *gen) {
+  struct autosa_drain_merge_func *func =
+      (struct autosa_drain_merge_func *)malloc(
+          sizeof(struct autosa_drain_merge_func));
   func->group = NULL;
   func->kernel = NULL;
   func->inst_ids = NULL;
@@ -1569,10 +1423,8 @@ struct autosa_drain_merge_func *autosa_drain_merge_func_alloc(struct autosa_gen 
   return func;
 }
 
-void *autosa_drain_merge_func_free(struct autosa_drain_merge_func *func)
-{
-  if (!func)
-    return NULL;
+void *autosa_drain_merge_func_free(struct autosa_drain_merge_func *func) {
+  if (!func) return NULL;
 
   isl_id_list_free(func->inst_ids);
   isl_ast_node_free(func->tree);
@@ -1585,24 +1437,23 @@ void *autosa_drain_merge_func_free(struct autosa_drain_merge_func *func)
 /****************************************************************
  * AutoSA AST node
  ****************************************************************/
-struct autosa_ast_node_userinfo *alloc_ast_node_userinfo()
-{
+struct autosa_ast_node_userinfo *alloc_ast_node_userinfo() {
   struct autosa_ast_node_userinfo *info =
-      (struct autosa_ast_node_userinfo *)malloc(sizeof(
-          struct autosa_ast_node_userinfo));
+      (struct autosa_ast_node_userinfo *)malloc(
+          sizeof(struct autosa_ast_node_userinfo));
   info->is_pipeline = 0;
   info->is_unroll = 0;
   info->is_outermost_for = 0;
   info->is_infinitize_legal = 0;
-  info->is_first_infinitizable_loop = 0;  
+  info->is_first_infinitizable_loop = 0;
   info->visited = 0;
 
   return info;
 }
 
-void free_ast_node_userinfo(void *ptr)
-{
-  struct autosa_ast_node_userinfo *info = (struct autosa_ast_node_userinfo *)ptr;
+void free_ast_node_userinfo(void *ptr) {
+  struct autosa_ast_node_userinfo *info =
+      (struct autosa_ast_node_userinfo *)ptr;
   free(info);
 }
 
@@ -1613,8 +1464,7 @@ void free_ast_node_userinfo(void *ptr)
  * "type" specifies the name of the space that we want to extract.
  * "res" is used to store the subset of that space.
  */
-struct autosa_extract_size_data
-{
+struct autosa_extract_size_data {
   const char *type;
   isl_set *res;
 };
@@ -1623,14 +1473,13 @@ struct autosa_extract_size_data
  * If the name of the set matches data->type, we store the
  * set in data->res.
  */
-static isl_stat extract_size_of_type(__isl_take isl_set *size, void *user)
-{
-  struct autosa_extract_size_data *data = (struct autosa_extract_size_data *)user;
+static isl_stat extract_size_of_type(__isl_take isl_set *size, void *user) {
+  struct autosa_extract_size_data *data =
+      (struct autosa_extract_size_data *)user;
   const char *name;
 
   name = isl_set_get_tuple_name(size);
-  if (name && !strcmp(name, data->type))
-  {
+  if (name && !strcmp(name, data->type)) {
     data->res = size;
     return isl_stat_error;
   }
@@ -1640,26 +1489,24 @@ static isl_stat extract_size_of_type(__isl_take isl_set *size, void *user)
 }
 
 /* Given a union map { kernel[] -> *[...] },
- * return the range in the space called "type" for the kernel with 
+ * return the range in the space called "type" for the kernel with
  * sequence number "id".
  */
 __isl_give isl_set *extract_sa_sizes(__isl_keep isl_union_map *sizes,
-                                     const char *type)
-{
+                                     const char *type) {
   isl_space *space;
   isl_set *dom;
   isl_union_set *local_sizes;
   struct autosa_extract_size_data data = {type, NULL};
 
-  if (!sizes)
-    return NULL;
+  if (!sizes) return NULL;
 
   space = isl_union_map_get_space(sizes);
   space = isl_space_set_from_params(space);
-  //space = isl_space_add_dims(space, isl_dim_set, 1);
+  // space = isl_space_add_dims(space, isl_dim_set, 1);
   space = isl_space_set_tuple_name(space, isl_dim_set, "kernel");
   dom = isl_set_universe(space);
-  //dom = isl_set_fix_si(dom, isl_dim_set, 0, id);
+  // dom = isl_set_fix_si(dom, isl_dim_set, 0, id);
 
   local_sizes = isl_union_set_apply(isl_union_set_from_set(dom),
                                     isl_union_map_copy(sizes));
@@ -1669,33 +1516,30 @@ __isl_give isl_set *extract_sa_sizes(__isl_keep isl_union_map *sizes,
 }
 
 /* Given a singleton set, extract the *len elements of the single integer tuple
- * into *sizes. 
+ * into *sizes.
  *
  * If the element value is "-1", the loop at the same position is not tiled.
- *  
+ *
  * If "set" is NULL, then the "sizes" array is not updated.
  */
-static isl_stat read_sa_sizes_from_set(__isl_take isl_set *set, int *sizes, int len)
-{
+static isl_stat read_sa_sizes_from_set(__isl_take isl_set *set, int *sizes,
+                                       int len) {
   int i;
   int dim;
 
-  if (!set)
-    return isl_stat_ok;
+  if (!set) return isl_stat_ok;
 
   dim = isl_set_dim(set, isl_dim_set);
   if (dim < len)
     isl_die(isl_set_get_ctx(set), isl_error_invalid,
             "fewer sa_sizes than required", return isl_stat_error);
 
-  for (i = 0; i < len; ++i)
-  {
+  for (i = 0; i < len; ++i) {
     isl_val *v;
 
     v = isl_set_plain_get_val_if_fixed(set, isl_dim_set, i);
-    if (!v)
-      goto error;    
-    sizes[i] = isl_val_get_num_si(v);    
+    if (!v) goto error;
+    sizes[i] = isl_val_get_num_si(v);
     isl_val_free(v);
   }
 
@@ -1710,67 +1554,61 @@ error:
  * return the range in the space called "type" for the kernel.
  */
 static __isl_give isl_set *extract_config_sizes(__isl_keep isl_union_map *sizes,
-  const char *type)
-{
+                                                const char *type) {
   isl_space *space;
   isl_set *dom;
   isl_union_set *local_sizes;
   struct autosa_extract_size_data data = {type, NULL};
 
-  if (!sizes)
-    return NULL;
-  
+  if (!sizes) return NULL;
+
   space = isl_union_map_get_space(sizes);
   space = isl_space_set_from_params(space);
-  //space = isl_space_add_dims(space, isl_dim_set, 1);
+  // space = isl_space_add_dims(space, isl_dim_set, 1);
   space = isl_space_set_tuple_name(space, isl_dim_set, "kernel");
   dom = isl_set_universe(space);
-//#ifdef _DEBUG
-//  isl_printer *pd = isl_printer_to_file(isl_set_get_ctx(dom), stdout);
-//  pd = isl_printer_print_set(pd, dom);
-//  pd = isl_printer_end_line(pd);
-//#endif
+  //#ifdef _DEBUG
+  //  isl_printer *pd = isl_printer_to_file(isl_set_get_ctx(dom), stdout);
+  //  pd = isl_printer_print_set(pd, dom);
+  //  pd = isl_printer_end_line(pd);
+  //#endif
 
   local_sizes = isl_union_set_apply(isl_union_set_from_set(dom),
                                     isl_union_map_copy(sizes));
 
-//#ifdef _DEBUG
-//  pd = isl_printer_print_union_set(pd, local_sizes);
-//  pd = isl_printer_end_line(pd);
-//#endif
-  isl_union_set_foreach_set(local_sizes, &extract_size_of_type, &data);                                      
+  //#ifdef _DEBUG
+  //  pd = isl_printer_print_union_set(pd, local_sizes);
+  //  pd = isl_printer_end_line(pd);
+  //#endif
+  isl_union_set_foreach_set(local_sizes, &extract_size_of_type, &data);
   isl_union_set_free(local_sizes);
   return data.res;
 }
 
 /* Given a singleton set, extract the *len elements of the single integer tuple
- * into *sizes. 
+ * into *sizes.
  *
  * If the element value is "-1", the loop at the same position is not tiled.
- *  
+ *
  * If "set" is NULL, then the "sizes" array is not updated.
  */
-static isl_stat read_config_sizes_from_set(__isl_take isl_set *set, 
-  int *sizes, int len)
-{
+static isl_stat read_config_sizes_from_set(__isl_take isl_set *set, int *sizes,
+                                           int len) {
   int i;
   int dim;
 
-  if (!set)
-    return isl_stat_ok;
+  if (!set) return isl_stat_ok;
 
   dim = isl_set_dim(set, isl_dim_set);
   if (dim < len)
     isl_die(isl_set_get_ctx(set), isl_error_invalid,
             "fewer sizes than required", return isl_stat_error);
 
-  for (i = 0; i < len; ++i)
-  {
+  for (i = 0; i < len; ++i) {
     isl_val *v;
 
     v = isl_set_plain_get_val_if_fixed(set, isl_dim_set, i);
-    if (!v)
-      goto error;
+    if (!v) goto error;
     sizes[i] = isl_val_get_num_si(v);
     isl_val_free(v);
   }
@@ -1782,41 +1620,35 @@ error:
   return isl_stat_error;
 }
 
-/* Add the map { kernel[id] -> type[sizes] } to gen->used-sizes 
+/* Add the map { kernel[id] -> type[sizes] } to gen->used-sizes
  * if the option debug->dump_sa_sizes is set.
  */
-static void set_sa_used_sizes(struct autosa_kernel *sa, const char *type, int id,
-                              int *sizes, int len)
-{
+static void set_sa_used_sizes(struct autosa_kernel *sa, const char *type,
+                              int id, int *sizes, int len) {
   // TODO: fix it
 }
 
-/* Extract user specified "sa_tile" sizes from the "sa_sizes" command line options,
- * defaulting to option->sa_tile_size in each dimension.
- * *tile_len contains the maximum number of tile sizes needed.
- * Update *tile_len to the number of specified tile sizes, if any, and
- * return a pointer to the tile sizes (or NULL on error).
- * And the effectively used sizes to sa->used_sizes.
+/* Extract user specified "sa_tile" sizes from the "sa_sizes" command line
+ * options, defaulting to option->sa_tile_size in each dimension. *tile_len
+ * contains the maximum number of tile sizes needed. Update *tile_len to the
+ * number of specified tile sizes, if any, and return a pointer to the tile
+ * sizes (or NULL on error). And the effectively used sizes to sa->used_sizes.
  */
-int *read_hbm_tile_sizes(struct autosa_kernel *sa, int tile_len, char *name)
-{
+int *read_hbm_tile_sizes(struct autosa_kernel *sa, int tile_len, char *name) {
   int n;
   int *tile_size;
   isl_set *size;
 
   tile_size = isl_alloc_array(sa->ctx, int, tile_len);
-  if (!tile_size)
-    return NULL;
+  if (!tile_size) return NULL;
 
   size = extract_sa_sizes(sa->sizes, name);
-  if (isl_set_dim(size, isl_dim_set) < tile_len)
-  {
+  if (isl_set_dim(size, isl_dim_set) < tile_len) {
     free(tile_size);
     isl_set_free(size);
     return NULL;
   }
-  if (read_sa_sizes_from_set(size, tile_size, tile_len) < 0)
-    goto error;
+  if (read_sa_sizes_from_set(size, tile_size, tile_len) < 0) goto error;
   set_sa_used_sizes(sa, name, sa->id, tile_size, tile_len);
 
   return tile_size;
@@ -1825,27 +1657,24 @@ error:
   return NULL;
 }
 
-int *read_default_hbm_tile_sizes(struct autosa_kernel *sa, int tile_len)
-{
+int *read_default_hbm_tile_sizes(struct autosa_kernel *sa, int tile_len) {
   int n;
   int *tile_size;
 
   tile_size = isl_alloc_array(sa->ctx, int, tile_len);
-  if (!tile_size)
-    return NULL;
+  if (!tile_size) return NULL;
   for (n = 0; n < tile_len; ++n)
     tile_size[n] = sa->scop->options->autosa->n_hbm_port;
 
   return tile_size;
 }
 
-/* Extract user specified data pack sizes from the "data_pack_sizes" command line
- * option, defaulting to 8, 32, 64, correponding to the upper bounds of data 
- * pack factors at the innermost, in-between, and outermost I/O module levels.
- * Return a pointer to the tile sizes (or NULL on error).
+/* Extract user specified data pack sizes from the "data_pack_sizes" command
+ * line option, defaulting to 8, 32, 64, correponding to the upper bounds of
+ * data pack factors at the innermost, in-between, and outermost I/O module
+ * levels. Return a pointer to the tile sizes (or NULL on error).
  */
-int *read_data_pack_sizes(__isl_keep isl_union_map *sizes, int tile_len)
-{
+int *read_data_pack_sizes(__isl_keep isl_union_map *sizes, int tile_len) {
   int n;
   int *tile_size;
   isl_set *size;
@@ -1853,29 +1682,26 @@ int *read_data_pack_sizes(__isl_keep isl_union_map *sizes, int tile_len)
 
   ctx = isl_union_map_get_ctx(sizes);
   tile_size = isl_alloc_array(ctx, int, tile_len);
-  if (!tile_size)
-    return NULL;
+  if (!tile_size) return NULL;
 
   size = extract_config_sizes(sizes, "data_pack");
-//#ifdef _DEBUG
-//  isl_printer *pd = isl_printer_to_file(ctx, stdout);
-//  pd = isl_printer_print_union_map(pd, sizes);
-//  pd = isl_printer_end_line(pd);
-//  if (!size)
-//    printf("null\n");
-//  pd = isl_printer_print_set(pd, size);
-//  pd = isl_printer_end_line(pd);
-//  isl_printer_free(pd);
-//#endif
-  
-  if (isl_set_dim(size, isl_dim_set) < tile_len) 
-  {
+  //#ifdef _DEBUG
+  //  isl_printer *pd = isl_printer_to_file(ctx, stdout);
+  //  pd = isl_printer_print_union_map(pd, sizes);
+  //  pd = isl_printer_end_line(pd);
+  //  if (!size)
+  //    printf("null\n");
+  //  pd = isl_printer_print_set(pd, size);
+  //  pd = isl_printer_end_line(pd);
+  //  isl_printer_free(pd);
+  //#endif
+
+  if (isl_set_dim(size, isl_dim_set) < tile_len) {
     free(tile_size);
     isl_set_free(size);
     return NULL;
   }
-  if (read_config_sizes_from_set(size, tile_size, tile_len) < 0)
-    goto error;
+  if (read_config_sizes_from_set(size, tile_size, tile_len) < 0) goto error;
 
   return tile_size;
 error:
@@ -1883,32 +1709,27 @@ error:
   return NULL;
 }
 
-/* Extract user specified "sa_tile" sizes from the "sa_sizes" command line option,
- * defaulting to option->sa_tile_size in each dimension.
- * *tile_len contains the maximum number of tile sizes needed.
- * Update *tile_len to the number of specified tile sizes, if any, and 
- * return a pointer to the tile sizes (or NULL on error).
- * And the effectively used sizes to sa->used_sizes.
+/* Extract user specified "sa_tile" sizes from the "sa_sizes" command line
+ * option, defaulting to option->sa_tile_size in each dimension. *tile_len
+ * contains the maximum number of tile sizes needed. Update *tile_len to the
+ * number of specified tile sizes, if any, and return a pointer to the tile
+ * sizes (or NULL on error). And the effectively used sizes to sa->used_sizes.
  */
-int *read_array_part_tile_sizes(struct autosa_kernel *sa, int tile_len)
-{
+int *read_array_part_tile_sizes(struct autosa_kernel *sa, int tile_len) {
   int n;
   int *tile_size;
   isl_set *size;
 
   tile_size = isl_alloc_array(sa->ctx, int, tile_len);
-  if (!tile_size)
-    return NULL;
+  if (!tile_size) return NULL;
 
   size = extract_sa_sizes(sa->sizes, "array_part");
-  if (isl_set_dim(size, isl_dim_set) < tile_len)
-  {
+  if (isl_set_dim(size, isl_dim_set) < tile_len) {
     free(tile_size);
     isl_set_free(size);
     return NULL;
   }
-  if (read_sa_sizes_from_set(size, tile_size, tile_len) < 0)
-    goto error;
+  if (read_sa_sizes_from_set(size, tile_size, tile_len) < 0) goto error;
   set_sa_used_sizes(sa, "array_part", sa->id, tile_size, tile_len);
 
   return tile_size;
@@ -1917,46 +1738,41 @@ error:
   return NULL;
 }
 
-int *read_default_array_part_tile_sizes(struct autosa_kernel *sa, int tile_len)
-{
+int *read_default_array_part_tile_sizes(struct autosa_kernel *sa,
+                                        int tile_len) {
   int n;
   int *tile_size;
 
   tile_size = isl_alloc_array(sa->ctx, int, tile_len);
-  if (!tile_size)
-    return NULL;
+  if (!tile_size) return NULL;
   for (n = 0; n < tile_len; ++n)
     tile_size[n] = sa->scop->options->autosa->sa_tile_size;
 
   return tile_size;
 }
 
-/* Extract user specified "sa_tile" sizes from the "sa_sizes" command line option,
- * defaulting to option->sa_tile_size in each dimension.
- * *tile_len contains the maximum number of tile sizes needed.
- * Update *tile_len to the number of specified tile sizes, if any, and
- * return a pointer to the tile sizes (or NULL on error).
- * And store the effectively used sizes to sa->used_sizes.
+/* Extract user specified "sa_tile" sizes from the "sa_sizes" command line
+ * option, defaulting to option->sa_tile_size in each dimension. *tile_len
+ * contains the maximum number of tile sizes needed. Update *tile_len to the
+ * number of specified tile sizes, if any, and return a pointer to the tile
+ * sizes (or NULL on error). And store the effectively used sizes to
+ * sa->used_sizes.
  */
-int *read_latency_tile_sizes(struct autosa_kernel *sa, int tile_len)
-{
+int *read_latency_tile_sizes(struct autosa_kernel *sa, int tile_len) {
   int n;
   int *tile_size;
   isl_set *size;
 
   tile_size = isl_alloc_array(sa->ctx, int, tile_len);
-  if (!tile_size)
-    return NULL;
+  if (!tile_size) return NULL;
 
   size = extract_sa_sizes(sa->sizes, "latency");
-  if (isl_set_dim(size, isl_dim_set) < tile_len)
-  {
+  if (isl_set_dim(size, isl_dim_set) < tile_len) {
     free(tile_size);
     isl_set_free(size);
     return NULL;
   }
-  if (read_sa_sizes_from_set(size, tile_size, tile_len) < 0)
-    goto error;
+  if (read_sa_sizes_from_set(size, tile_size, tile_len) < 0) goto error;
   set_sa_used_sizes(sa, "latency", sa->id, tile_size, tile_len);
 
   return tile_size;
@@ -1965,39 +1781,33 @@ error:
   return NULL;
 }
 
-int *read_default_latency_tile_sizes(struct autosa_kernel *sa, int tile_len)
-{
+int *read_default_latency_tile_sizes(struct autosa_kernel *sa, int tile_len) {
   int n;
   int *tile_size;
 
   tile_size = isl_alloc_array(sa->ctx, int, tile_len);
-  if (!tile_size)
-    return NULL;
+  if (!tile_size) return NULL;
   for (n = 0; n < tile_len; ++n)
     tile_size[n] = sa->scop->options->autosa->sa_tile_size / 2;
 
   return tile_size;
 }
 
-int *read_simd_tile_sizes(struct autosa_kernel *sa, int tile_len)
-{
+int *read_simd_tile_sizes(struct autosa_kernel *sa, int tile_len) {
   int n;
   int *tile_size;
   isl_set *size;
 
   tile_size = isl_alloc_array(sa->ctx, int, tile_len);
-  if (!tile_size)
-    return NULL;
+  if (!tile_size) return NULL;
 
   size = extract_sa_sizes(sa->sizes, "simd");
-  if (isl_set_dim(size, isl_dim_set) < tile_len)
-  {
+  if (isl_set_dim(size, isl_dim_set) < tile_len) {
     free(tile_size);
     isl_set_free(size);
     return NULL;
   }
-  if (read_sa_sizes_from_set(size, tile_size, tile_len) < 0)
-    goto error;
+  if (read_sa_sizes_from_set(size, tile_size, tile_len) < 0) goto error;
   set_sa_used_sizes(sa, "simd", sa->id, tile_size, tile_len);
 
   return tile_size;
@@ -2006,43 +1816,36 @@ error:
   return NULL;
 }
 
-int read_space_time_kernel_id(__isl_keep isl_union_map *sizes)
-{
+int read_space_time_kernel_id(__isl_keep isl_union_map *sizes) {
   isl_set *size;
   int kernel_id;
   int dim;
   size = extract_sa_sizes(sizes, "space_time");
-  if (!size)
-    return -1;
+  if (!size) return -1;
   dim = isl_set_dim(size, isl_dim_set);
   if (dim == 0)
     return -1;
-  else
-  {
+  else {
     read_sa_sizes_from_set(size, &kernel_id, 1);
     return kernel_id;
   }
 }
 
-int *read_array_part_L2_tile_sizes(struct autosa_kernel *sa, int tile_len)
-{
+int *read_array_part_L2_tile_sizes(struct autosa_kernel *sa, int tile_len) {
   int n;
   int *tile_size;
   isl_set *size;
 
   tile_size = isl_alloc_array(sa->ctx, int, tile_len);
-  if (!tile_size)
-    return NULL;
+  if (!tile_size) return NULL;
 
   size = extract_sa_sizes(sa->sizes, "array_part_L2");
-  if (isl_set_dim(size, isl_dim_set) < tile_len)
-  {
+  if (isl_set_dim(size, isl_dim_set) < tile_len) {
     free(tile_size);
     isl_set_free(size);
     return NULL;
   }
-  if (read_sa_sizes_from_set(size, tile_size, tile_len) < 0)
-    goto error;
+  if (read_sa_sizes_from_set(size, tile_size, tile_len) < 0) goto error;
   set_sa_used_sizes(sa, "array_part_L2", sa->id, tile_size, tile_len);
 
   return tile_size;
@@ -2054,8 +1857,7 @@ error:
 /****************************************************************
  * AutoSA latency and resource estimation
  ****************************************************************/
-struct extract_loop_info_data
-{
+struct extract_loop_info_data {
   cJSON *loop_struct;
 };
 
@@ -2063,9 +1865,8 @@ struct extract_loop_info_data
  * upper bound, and stride.
  * Return the pointer to the loop child.
  */
-static cJSON *extract_isl_ast_node_for(__isl_keep isl_ast_node *node, cJSON *loop,
-                                       isl_bool degenerate)
-{
+static cJSON *extract_isl_ast_node_for(__isl_keep isl_ast_node *node,
+                                       cJSON *loop, isl_bool degenerate) {
   cJSON *loop_info = cJSON_CreateObject();
   cJSON *loop_child = cJSON_CreateObject();
   isl_printer *p_str = NULL;
@@ -2099,8 +1900,7 @@ static cJSON *extract_isl_ast_node_for(__isl_keep isl_ast_node *node, cJSON *loo
   free(str);
   isl_ast_expr_free(init);
 
-  if (!degenerate)
-  {
+  if (!degenerate) {
     /* upper bound */
     p_str = isl_printer_to_str(ctx);
     p_str = isl_printer_set_output_format(p_str, ISL_FORMAT_C);
@@ -2120,9 +1920,7 @@ static cJSON *extract_isl_ast_node_for(__isl_keep isl_ast_node *node, cJSON *loo
     cJSON_AddStringToObject(loop_info, "stride", str);
     isl_printer_free(p_str);
     free(str);
-  }
-  else
-  {
+  } else {
     const cJSON *lb;
 
     lb = cJSON_GetObjectItemCaseSensitive(loop_info, "lb");
@@ -2138,16 +1936,16 @@ static cJSON *extract_isl_ast_node_for(__isl_keep isl_ast_node *node, cJSON *loo
   return loop_child;
 }
 
-static cJSON *extract_isl_ast_node_block(__isl_keep isl_ast_node *node, cJSON *block)
-{
+static cJSON *extract_isl_ast_node_block(__isl_keep isl_ast_node *node,
+                                         cJSON *block) {
   cJSON *block_child = cJSON_CreateArray();
   cJSON_AddItemToObject(block, "child", block_child);
 
   return block_child;
 }
 
-static cJSON *extract_isl_ast_node_mark(__isl_keep isl_ast_node *node, cJSON *mark)
-{
+static cJSON *extract_isl_ast_node_mark(__isl_keep isl_ast_node *node,
+                                        cJSON *mark) {
   cJSON *mark_child = cJSON_CreateObject();
   isl_id *id = isl_ast_node_mark_get_id(node);
   char *name = (char *)isl_id_get_name(id);
@@ -2158,8 +1956,8 @@ static cJSON *extract_isl_ast_node_mark(__isl_keep isl_ast_node *node, cJSON *ma
   return mark_child;
 }
 
-static cJSON *extract_isl_ast_node_user(__isl_keep isl_ast_node *node, cJSON *user)
-{
+static cJSON *extract_isl_ast_node_user(__isl_keep isl_ast_node *node,
+                                        cJSON *user) {
   isl_ctx *ctx = isl_ast_node_get_ctx(node);
   isl_ast_expr *expr = isl_ast_node_user_get_expr(node);
   isl_printer *p_str = isl_printer_to_str(ctx);
@@ -2176,161 +1974,135 @@ static cJSON *extract_isl_ast_node_user(__isl_keep isl_ast_node *node, cJSON *us
 }
 
 static cJSON *extract_loop_info_at_ast_node(__isl_keep isl_ast_node *node,
-                                            cJSON *loop_struct)
-{
+                                            cJSON *loop_struct) {
   enum isl_ast_node_type type;
   isl_ctx *ctx = isl_ast_node_get_ctx(node);
   type = isl_ast_node_get_type(node);
 
-  switch (type)
-  {
-  case isl_ast_node_for:
-  {
-    isl_bool degenerate = isl_ast_node_for_is_degenerate(node);
-    /* Extract the loop information and insert it into the loop struct */
-    cJSON *loop = cJSON_CreateObject();
-    cJSON *loop_child = extract_isl_ast_node_for(node, loop, degenerate);
-    if (cJSON_IsObject(loop_struct))
-    {
-      cJSON_AddItemToObject(loop_struct, "loop", loop);
-    }
-    else if (cJSON_IsArray(loop_struct))
-    {
-      cJSON *item = cJSON_CreateObject();
-      cJSON_AddItemToObject(item, "loop", loop);
-      cJSON_AddItemToArray(loop_struct, item);
-    }
-    isl_ast_node *child_node;
-    /* Update the JSON pointer */
-    child_node = isl_ast_node_for_get_body(node);
-    extract_loop_info_at_ast_node(child_node, loop_child);
-    isl_ast_node_free(child_node);
-
-    break;
-  }
-  case isl_ast_node_block:
-  {
-    /* Extract the block information and insert it into the loop struct */
-    isl_ast_node_list *child_list = isl_ast_node_block_get_children(node);
-    int n_child = isl_ast_node_list_n_ast_node(child_list);
-    cJSON *block = cJSON_CreateObject();
-    cJSON *block_child = extract_isl_ast_node_block(node, block);
-    if (cJSON_IsObject(loop_struct))
-    {
-      cJSON_AddItemToObject(loop_struct, "block", block);
-    }
-    else if (cJSON_IsArray(loop_struct))
-    {
-      cJSON *item = cJSON_CreateObject();
-      cJSON_AddItemToObject(item, "block", block);
-      cJSON_AddItemToArray(loop_struct, item);
-    }
-
-    isl_ast_node *child_node;
-    for (int i = 0; i < n_child; i++)
-    {
-      cJSON *child_struct;
-      child_node = isl_ast_node_list_get_ast_node(child_list, i);
-      extract_loop_info_at_ast_node(child_node, block_child);
+  switch (type) {
+    case isl_ast_node_for: {
+      isl_bool degenerate = isl_ast_node_for_is_degenerate(node);
+      /* Extract the loop information and insert it into the loop struct */
+      cJSON *loop = cJSON_CreateObject();
+      cJSON *loop_child = extract_isl_ast_node_for(node, loop, degenerate);
+      if (cJSON_IsObject(loop_struct)) {
+        cJSON_AddItemToObject(loop_struct, "loop", loop);
+      } else if (cJSON_IsArray(loop_struct)) {
+        cJSON *item = cJSON_CreateObject();
+        cJSON_AddItemToObject(item, "loop", loop);
+        cJSON_AddItemToArray(loop_struct, item);
+      }
+      isl_ast_node *child_node;
+      /* Update the JSON pointer */
+      child_node = isl_ast_node_for_get_body(node);
+      extract_loop_info_at_ast_node(child_node, loop_child);
       isl_ast_node_free(child_node);
-    }
-    isl_ast_node_list_free(child_list);
 
-    break;
-  }
-  case isl_ast_node_user:
-  {
-    /* Extract the user information and insert it into the loop struct */
-    cJSON *user = cJSON_CreateObject();
-    user = extract_isl_ast_node_user(node, user);
-
-    if (cJSON_IsObject(loop_struct))
-    {
-      cJSON_AddItemToObject(loop_struct, "user", user);
+      break;
     }
-    else if (cJSON_IsArray(loop_struct))
-    {
-      cJSON *item = cJSON_CreateObject();
-      cJSON_AddItemToObject(item, "user", user);
-      cJSON_AddItemToArray(loop_struct, item);
-    }
+    case isl_ast_node_block: {
+      /* Extract the block information and insert it into the loop struct */
+      isl_ast_node_list *child_list = isl_ast_node_block_get_children(node);
+      int n_child = isl_ast_node_list_n_ast_node(child_list);
+      cJSON *block = cJSON_CreateObject();
+      cJSON *block_child = extract_isl_ast_node_block(node, block);
+      if (cJSON_IsObject(loop_struct)) {
+        cJSON_AddItemToObject(loop_struct, "block", block);
+      } else if (cJSON_IsArray(loop_struct)) {
+        cJSON *item = cJSON_CreateObject();
+        cJSON_AddItemToObject(item, "block", block);
+        cJSON_AddItemToArray(loop_struct, item);
+      }
 
-    break;
-  }
-  case isl_ast_node_if:
-  {
-    cJSON *if_struct = cJSON_CreateObject();
-    cJSON *then_struct = cJSON_CreateObject();
-    cJSON *else_struct = NULL;
-    if (cJSON_IsObject(loop_struct))
-    {
-      cJSON_AddItemToObject(loop_struct, "if", if_struct);
-    }
-    else if (cJSON_IsArray(loop_struct))
-    {
-      cJSON *item = cJSON_CreateObject();
-      cJSON_AddItemToObject(item, "if", if_struct);
-      cJSON_AddItemToArray(loop_struct, item);
-    }
+      isl_ast_node *child_node;
+      for (int i = 0; i < n_child; i++) {
+        cJSON *child_struct;
+        child_node = isl_ast_node_list_get_ast_node(child_list, i);
+        extract_loop_info_at_ast_node(child_node, block_child);
+        isl_ast_node_free(child_node);
+      }
+      isl_ast_node_list_free(child_list);
 
-    isl_ast_node *child_node;
-    child_node = isl_ast_node_if_get_then_node(node);
-    cJSON_AddItemToObject(if_struct, "then", then_struct);
-    extract_loop_info_at_ast_node(child_node, then_struct);
-    isl_ast_node_free(child_node);
+      break;
+    }
+    case isl_ast_node_user: {
+      /* Extract the user information and insert it into the loop struct */
+      cJSON *user = cJSON_CreateObject();
+      user = extract_isl_ast_node_user(node, user);
 
-    child_node = isl_ast_node_if_get_else_node(node);
-    if (child_node)
-    {
-      else_struct = cJSON_CreateObject();
-      cJSON_AddItemToObject(if_struct, "else", else_struct);
-      extract_loop_info_at_ast_node(child_node, else_struct);
+      if (cJSON_IsObject(loop_struct)) {
+        cJSON_AddItemToObject(loop_struct, "user", user);
+      } else if (cJSON_IsArray(loop_struct)) {
+        cJSON *item = cJSON_CreateObject();
+        cJSON_AddItemToObject(item, "user", user);
+        cJSON_AddItemToArray(loop_struct, item);
+      }
+
+      break;
+    }
+    case isl_ast_node_if: {
+      cJSON *if_struct = cJSON_CreateObject();
+      cJSON *then_struct = cJSON_CreateObject();
+      cJSON *else_struct = NULL;
+      if (cJSON_IsObject(loop_struct)) {
+        cJSON_AddItemToObject(loop_struct, "if", if_struct);
+      } else if (cJSON_IsArray(loop_struct)) {
+        cJSON *item = cJSON_CreateObject();
+        cJSON_AddItemToObject(item, "if", if_struct);
+        cJSON_AddItemToArray(loop_struct, item);
+      }
+
+      isl_ast_node *child_node;
+      child_node = isl_ast_node_if_get_then_node(node);
+      cJSON_AddItemToObject(if_struct, "then", then_struct);
+      extract_loop_info_at_ast_node(child_node, then_struct);
       isl_ast_node_free(child_node);
-    }
 
-    break;
-  }
-  case isl_ast_node_mark:
-  {
-    /* Extract the mark id and insert it into the loop struct */
-    cJSON *mark = cJSON_CreateObject();
-    cJSON *mark_child = extract_isl_ast_node_mark(node, mark);
-    if (cJSON_IsObject(loop_struct))
-    {
-      cJSON_AddItemToObject(loop_struct, "mark", mark);
-    }
-    else if (cJSON_IsArray(loop_struct))
-    {
-      cJSON *item = cJSON_CreateObject();
-      cJSON_AddItemToObject(item, "mark", mark);
-      cJSON_AddItemToArray(loop_struct, item);
-    }
+      child_node = isl_ast_node_if_get_else_node(node);
+      if (child_node) {
+        else_struct = cJSON_CreateObject();
+        cJSON_AddItemToObject(if_struct, "else", else_struct);
+        extract_loop_info_at_ast_node(child_node, else_struct);
+        isl_ast_node_free(child_node);
+      }
 
-    isl_ast_node *child_node;
-    child_node = isl_ast_node_mark_get_node(node);
-    extract_loop_info_at_ast_node(child_node, mark_child);
-    isl_ast_node_free(child_node);
+      break;
+    }
+    case isl_ast_node_mark: {
+      /* Extract the mark id and insert it into the loop struct */
+      cJSON *mark = cJSON_CreateObject();
+      cJSON *mark_child = extract_isl_ast_node_mark(node, mark);
+      if (cJSON_IsObject(loop_struct)) {
+        cJSON_AddItemToObject(loop_struct, "mark", mark);
+      } else if (cJSON_IsArray(loop_struct)) {
+        cJSON *item = cJSON_CreateObject();
+        cJSON_AddItemToObject(item, "mark", mark);
+        cJSON_AddItemToArray(loop_struct, item);
+      }
 
-    break;
-  }
-  default:
-    break;
+      isl_ast_node *child_node;
+      child_node = isl_ast_node_mark_get_node(node);
+      extract_loop_info_at_ast_node(child_node, mark_child);
+      isl_ast_node_free(child_node);
+
+      break;
+    }
+    default:
+      break;
   }
 
   return NULL;
 }
 
-/* Extract the loop structure and detailed information of the hardware module into 
- * a JSON struct. If "print" is set, we will print out the JSON file. 
+/* Extract the loop structure and detailed information of the hardware module
+ * into a JSON struct. If "print" is set, we will print out the JSON file.
  * Otherwise, return it as a string.
  */
-static char *extract_loop_info_from_module(
-    struct autosa_gen *gen, __isl_keep isl_ast_node *tree,
-    char *module_name, int double_buffer, int in,
-    int print)
-{
-  if (!tree)
-    return NULL;
+static char *extract_loop_info_from_module(struct autosa_gen *gen,
+                                           __isl_keep isl_ast_node *tree,
+                                           char *module_name, int double_buffer,
+                                           int in, int print) {
+  if (!tree) return NULL;
 
   cJSON *loop_struct = cJSON_CreateObject();
   cJSON *module_props = cJSON_CreateObject();
@@ -2340,19 +2112,16 @@ static char *extract_loop_info_from_module(
   cJSON_AddNumberToObject(module_props, "double_buffer", double_buffer);
   cJSON_AddNumberToObject(module_props, "in", in);
   cJSON_AddItemToObject(loop_struct, "module_prop", module_props);
-  
+
   extract_loop_info_at_ast_node(tree, loop_struct);
 
   /* Print the JSON file */
   json_str = cJSON_Print(loop_struct);
 
-  if (!print)
-  {
+  if (!print) {
     cJSON_Delete(loop_struct);
     return json_str;
-  }
-  else
-  {
+  } else {
     char *file_name;
     FILE *fp;
     isl_printer *p_str;
@@ -2369,8 +2138,7 @@ static char *extract_loop_info_from_module(
     cJSON_Delete(loop_struct);
 
     fp = fopen(file_name, "w");
-    if (!fp)
-    {
+    if (!fp) {
       printf("[AutoSA] Error: Cannot open file: %s\n", file_name);
       exit(1);
     }
@@ -2383,57 +2151,62 @@ static char *extract_loop_info_from_module(
   }
 }
 
-/* Extract the loop structure and detailed information of the hardware module into 
- * a JSON struct.
+/* Extract the loop structure and detailed information of the hardware module
+ * into a JSON struct.
  */
-isl_stat sa_extract_loop_info(struct autosa_gen *gen, struct autosa_hw_module *module)
-{
+isl_stat sa_extract_loop_info(struct autosa_gen *gen,
+                              struct autosa_hw_module *module) {
   char *module_name = NULL;
   char *json_str = NULL;
   isl_ctx *ctx = gen->ctx;
 
-  if (module->is_filter && module->is_buffer)
-  {
+  if (module->is_filter && module->is_buffer) {
     /* Parse the loop structure of the intra trans module */
     module_name = concat(ctx, module->name, "intra_trans");
-    json_str = extract_loop_info_from_module(gen, module->intra_tree, module_name, module->double_buffer, module->in, 1);
+    json_str =
+        extract_loop_info_from_module(gen, module->intra_tree, module_name,
+                                      module->double_buffer, module->in, 1);
     free(module_name);
 
     /* Parse the loop structure of the inter trans module */
     module_name = concat(ctx, module->name, "inter_trans");
-    json_str = extract_loop_info_from_module(gen, module->inter_tree, module_name, module->double_buffer, module->in, 1);
+    json_str =
+        extract_loop_info_from_module(gen, module->inter_tree, module_name,
+                                      module->double_buffer, module->in, 1);
     free(module_name);
 
-    if (module->boundary)
-    {
+    if (module->boundary) {
       module_name = concat(ctx, module->name, "inter_trans_boundary");
-      json_str = extract_loop_info_from_module(gen, module->boundary_inter_tree, module_name, module->double_buffer, module->in, 1);
+      json_str = extract_loop_info_from_module(
+          gen, module->boundary_inter_tree, module_name, module->double_buffer,
+          module->in, 1);
       free(module_name);
     }
   }
 
   /* Parse the loop structure of the default module */
-//#ifdef _DEBUG
-//  if (!module->device_tree) {
-//    printf("non tree module_name: %s\n", module->name);
-//    exit(0);
-//  }
-//#endif
-  json_str = extract_loop_info_from_module(gen, module->device_tree, module->name, module->double_buffer, module->in, 1);
+  //#ifdef _DEBUG
+  //  if (!module->device_tree) {
+  //    printf("non tree module_name: %s\n", module->name);
+  //    exit(0);
+  //  }
+  //#endif
+  json_str =
+      extract_loop_info_from_module(gen, module->device_tree, module->name,
+                                    module->double_buffer, module->in, 1);
 
   /* Parse the loop structure of the boundary module */
-  if (module->boundary)
-  {
+  if (module->boundary) {
     module_name = concat(ctx, module->name, "boundary");
-    json_str = extract_loop_info_from_module(gen, module->boundary_tree, module_name, module->double_buffer, module->in, 1);
+    json_str =
+        extract_loop_info_from_module(gen, module->boundary_tree, module_name,
+                                      module->double_buffer, module->in, 1);
     free(module_name);
   }
 
   /* Parse the loop structure of the dummy module */
-  if (module->n_pe_dummy_modules > 0)
-  {
-    for (int i = 0; i < module->n_pe_dummy_modules; i++)
-    {
+  if (module->n_pe_dummy_modules > 0) {
+    for (int i = 0; i < module->n_pe_dummy_modules; i++) {
       struct autosa_pe_dummy_module *dummy_module = module->pe_dummy_modules[i];
       struct autosa_array_ref_group *group = dummy_module->io_group;
 
@@ -2443,7 +2216,8 @@ isl_stat sa_extract_loop_info(struct autosa_gen *gen, struct autosa_hw_module *m
       p_str = isl_printer_print_str(p_str, "_PE_dummy");
       module_name = isl_printer_get_str(p_str);
       isl_printer_free(p_str);
-      json_str = extract_loop_info_from_module(gen, dummy_module->device_tree, module_name, 0, 0, 1);
+      json_str = extract_loop_info_from_module(gen, dummy_module->device_tree,
+                                               module_name, 0, 0, 1);
       free(module_name);
     }
   }
@@ -2453,23 +2227,23 @@ isl_stat sa_extract_loop_info(struct autosa_gen *gen, struct autosa_hw_module *m
 
 /* Extract the array type information that will be used for latency estimation.
  */
-isl_stat sa_extract_array_info(struct autosa_kernel *kernel)
-{
+isl_stat sa_extract_array_info(struct autosa_kernel *kernel) {
   cJSON *array_info = cJSON_CreateObject();
   char *json_str = NULL;
   FILE *fp;
   isl_printer *p_str;
   char *file_path;
 
-  for (int i = 0; i < kernel->n_array; i++)
-  {
+  for (int i = 0; i < kernel->n_array; i++) {
     cJSON *array = cJSON_CreateObject();
     struct autosa_local_array_info *local_array = &kernel->array[i];
     char *array_name = local_array->array->name; /* Name of the array */
     char *array_type = local_array->array->type; /* Element type */
 
-    cJSON *n_lane = cJSON_CreateNumber(local_array->n_lane);          /* Data pack factor of the array */
-    cJSON *array_size = cJSON_CreateNumber(local_array->array->size); /* Element size */
+    cJSON *n_lane = cJSON_CreateNumber(
+        local_array->n_lane); /* Data pack factor of the array */
+    cJSON *array_size =
+        cJSON_CreateNumber(local_array->array->size); /* Element size */
 
     cJSON_AddItemToObject(array, "n_lane", n_lane);
     cJSON_AddStringToObject(array, "ele_type", array_type);
@@ -2484,8 +2258,7 @@ isl_stat sa_extract_array_info(struct autosa_kernel *kernel)
   p_str = isl_printer_print_str(p_str, "/latency_est/array_info.json");
   file_path = isl_printer_get_str(p_str);
   fp = fopen(file_path, "w");
-  if (!fp)
-  {
+  if (!fp) {
     printf("[AutoSA] Error: Cannot open file: %s\n", file_path);
     exit(1);
   }
@@ -2500,11 +2273,11 @@ isl_stat sa_extract_array_info(struct autosa_kernel *kernel)
 }
 
 /* Extract the memory type of the local array.
- * Heuristics: 
+ * Heuristics:
  * Compute the buffer utilization (18Kb BRAM):
  * - If the buffer port width < 18bits, util = #ele / 1024
  * - Otherwise, util = #ele / 512
- * 
+ *
  * If the local buffer is inside PE module or I/O/drain module at IO_L1:
  * - If the buffer uses primitive type (n_lane == 1) and #ele <= 32, use FF
  * - Otherwise, use BRAM
@@ -2514,16 +2287,14 @@ isl_stat sa_extract_array_info(struct autosa_kernel *kernel)
  * - Otherwise, if memory util > 0.2 use BRAM, else use LUTRAM.
  */
 int extract_memory_type(struct autosa_hw_module *module,
-                        struct autosa_kernel_var *var, int uram)
-{
+                        struct autosa_kernel_var *var, int uram) {
   /* 0: FF 1: LUTRAM 2: BRAM 3: URAM */
   int use_memory = 0;
   int var_size = 1;
   float bram_util;
 
-  for (int i = 0; i < isl_vec_size(var->size); ++i)
-  {
-    isl_val *v = isl_vec_get_element_val(var->size, i);    
+  for (int i = 0; i < isl_vec_size(var->size); ++i) {
+    isl_val *v = isl_vec_get_element_val(var->size, i);
     long v_i = isl_val_get_num_si(v);
     var_size *= v_i;
     isl_val_free(v);
@@ -2533,11 +2304,11 @@ int extract_memory_type(struct autosa_hw_module *module,
   else
     bram_util = (float)var_size / 512;
 
-  //if (module->type == PE_MODULE) {
+  // if (module->type == PE_MODULE) {
   //  if (var->n_lane == 1 && var_size <= 32)
   //    use_memory = 0;
   //  else
-  //    use_memory = 2;    
+  //    use_memory = 2;
   //} else if (module->type != PE_MODULE && module->level == 1) {
   //  if (var->n_lane == 1 && var_size <= 32)
   //    use_memory = 0;
@@ -2546,8 +2317,8 @@ int extract_memory_type(struct autosa_hw_module *module,
   //    if (bram_util > 0.2)
   //      use_memory = 2;
   //    else
-  //      use_memory = 0;      
-  //  }      
+  //      use_memory = 0;
+  //  }
   //} else {
   //  if (module->to_mem == 1) {
   //    if (uram)
@@ -2559,11 +2330,11 @@ int extract_memory_type(struct autosa_hw_module *module,
   //      use_memory = 2;
   //    else
   //      use_memory = 0;
-  //      //use_memory = 1;        
+  //      //use_memory = 1;
   //  }
   //}
 
-  //if (module->type != PE_MODULE && module->to_mem == 1) {
+  // if (module->type != PE_MODULE && module->to_mem == 1) {
   //  if (uram)
   //    use_memory = 3;
   //  else
@@ -2575,15 +2346,15 @@ int extract_memory_type(struct autosa_hw_module *module,
   //    use_memory = 2;
   //}
 
-  // Special strategy for GEMM 1D 
+  // Special strategy for GEMM 1D
   if (module->type != PE_MODULE && module->to_mem == 1) {
     if (uram)
       use_memory = 3;
     else
       use_memory = 2;
   } else {
-    //if (module->type == DRAIN_MODULE && module->level == 1) 
-    if (module->type == IO_MODULE && module->level == 1) 
+    // if (module->type == DRAIN_MODULE && module->level == 1)
+    if (module->type == IO_MODULE && module->level == 1)
       use_memory = 0;
     else {
       if (var->n_lane == 1 && var_size <= 64)
@@ -2593,37 +2364,33 @@ int extract_memory_type(struct autosa_hw_module *module,
     }
   }
 
-  if (use_memory == 0) 
-    module->use_FF = 1;
+  if (use_memory == 0) module->use_FF = 1;
 
   return use_memory;
 }
 
 static cJSON *extract_buffer_info_from_module(struct autosa_gen *gen,
                                               struct autosa_hw_module *module,
-                                              struct autosa_kernel_var *var, const char *suffix)
-{
+                                              struct autosa_kernel_var *var,
+                                              const char *suffix) {
   cJSON *buffer = cJSON_CreateObject();
 
   /* Generate buffer name */
   char *buffer_name = var->name;
-  if (suffix)
-    buffer_name = concat(gen->ctx, buffer_name, suffix);
+  if (suffix) buffer_name = concat(gen->ctx, buffer_name, suffix);
   cJSON_AddStringToObject(buffer, "buffer_name", buffer_name);
-  if (suffix)
-    free(buffer_name);
+  if (suffix) free(buffer_name);
 
   /* Generate buffer port width */
   int n_lane = var->n_lane;
   int ele_size = var->array->size;
-  int port_w = n_lane * ele_size; // in bytes
+  int port_w = n_lane * ele_size;  // in bytes
   cJSON *port_width = cJSON_CreateNumber(port_w);
   cJSON_AddItemToObject(buffer, "port_width", port_width);
 
   /* Generate buffer size */
   int size = 1;
-  for (int j = 0; j < isl_vec_size(var->size); j++)
-  {
+  for (int j = 0; j < isl_vec_size(var->size); j++) {
     isl_val *v;
     int v_int;
     v = isl_vec_get_element_val(var->size, j);
@@ -2650,7 +2417,7 @@ static cJSON *extract_buffer_info_from_module(struct autosa_gen *gen,
     cJSON_AddStringToObject(buffer, "mem_type", "URAM");
 
   ///* Array map */
-  //if (module->double_buffer) {
+  // if (module->double_buffer) {
   //  cJSON_AddStringToObject(buffer, "array_map", "horizontal");
   //}
 
@@ -2659,13 +2426,12 @@ static cJSON *extract_buffer_info_from_module(struct autosa_gen *gen,
 
 /* If "buffer" is set 1, extract local buffer information. */
 static cJSON *extract_design_info_from_module(struct autosa_gen *gen,
-                                              struct autosa_hw_module *module, char *module_name, int buffer)
-{
+                                              struct autosa_hw_module *module,
+                                              char *module_name, int buffer) {
   cJSON *info = cJSON_CreateObject();
   int double_buffer = module->double_buffer;
 
-  if (module->type == PE_MODULE)
-  {
+  if (module->type == PE_MODULE) {
     /* Extract the SIMD factor */
     cJSON *unroll = cJSON_CreateNumber(gen->kernel->simd_w);
     cJSON_AddItemToObject(info, "unroll", unroll);
@@ -2675,12 +2441,11 @@ static cJSON *extract_design_info_from_module(struct autosa_gen *gen,
     int *fifo_lanes_num = (int *)malloc(module->n_io_group * sizeof(int));
     for (int i = 0; i < module->n_io_group; i++)
       fifo_lanes_num[i] = module->io_groups[i]->n_lane;
-    cJSON *fifo_lanes = cJSON_CreateIntArray(fifo_lanes_num, module->n_io_group);
+    cJSON *fifo_lanes =
+        cJSON_CreateIntArray(fifo_lanes_num, module->n_io_group);
     cJSON_AddItemToObject(info, "fifo_lanes", fifo_lanes);
     free(fifo_lanes_num);
-  }
-  else
-  {
+  } else {
     /* Extract the input and output data lanes and width */
     cJSON *data_pack_inter = cJSON_CreateNumber(module->data_pack_inter);
     cJSON *data_pack_intra = cJSON_CreateNumber(module->data_pack_intra);
@@ -2701,22 +2466,17 @@ static cJSON *extract_design_info_from_module(struct autosa_gen *gen,
     }
   }
   /* Extract the local buffer */
-  if (buffer)
-  {
+  if (buffer) {
     cJSON *buffers = cJSON_CreateArray();
-    for (int i = 0; i < module->n_var; ++i)
-    {
+    for (int i = 0; i < module->n_var; ++i) {
       cJSON *buffer = NULL;
       struct autosa_kernel_var *var = &module->var[i];
-      if (double_buffer)
-      {
+      if (double_buffer) {
         buffer = extract_buffer_info_from_module(gen, module, var, "ping");
         cJSON_AddItemToArray(buffers, buffer);
         buffer = extract_buffer_info_from_module(gen, module, var, "pong");
         cJSON_AddItemToArray(buffers, buffer);
-      }
-      else
-      {
+      } else {
         buffer = extract_buffer_info_from_module(gen, module, var, NULL);
         cJSON_AddItemToArray(buffers, buffer);
       }
@@ -2727,9 +2487,9 @@ static cJSON *extract_design_info_from_module(struct autosa_gen *gen,
   return info;
 }
 
-static cJSON *extract_design_info_from_serialize_module(struct autosa_gen *gen,
-                                                        struct autosa_hw_module *module, char *module_name)
-{
+static cJSON *extract_design_info_from_serialize_module(
+    struct autosa_gen *gen, struct autosa_hw_module *module,
+    char *module_name) {
   cJSON *info = cJSON_CreateObject();
   /* Extract the input and output data lanes and width */
   cJSON *data_pack_inter = cJSON_CreateNumber(module->data_pack_serialize);
@@ -2747,15 +2507,20 @@ static cJSON *extract_design_info_from_serialize_module(struct autosa_gen *gen,
 }
 
 /* Extract the data packing factor "n_lane" for PE dummy module.
- * Note that for PE dummay module with internal array, if the I/O type is 
+ * Note that for PE dummay module with internal array, if the I/O type is
  * interior I/O, we look for the n_lane of IO_L1 buffer.
  */
-static cJSON *extract_design_info_from_pe_dummy_module(struct autosa_gen *gen,
-                                                       struct autosa_pe_dummy_module *module, char *module_name)
-{
+static cJSON *extract_design_info_from_pe_dummy_module(
+    struct autosa_gen *gen, struct autosa_pe_dummy_module *module,
+    char *module_name) {
   cJSON *info = cJSON_CreateObject();
   struct autosa_array_ref_group *group = module->io_group;
-  int n_lane = (group->local_array->array_type == AUTOSA_EXT_ARRAY) ? group->n_lane : ((group->group_type == AUTOSA_DRAIN_GROUP) ? group->n_lane : (group->io_type == AUTOSA_EXT_IO) ? group->n_lane : group->io_buffers[0]->n_lane);
+  int n_lane = (group->local_array->array_type == AUTOSA_EXT_ARRAY)
+                   ? group->n_lane
+                   : ((group->group_type == AUTOSA_DRAIN_GROUP) ? group->n_lane
+                      : (group->io_type == AUTOSA_EXT_IO)
+                          ? group->n_lane
+                          : group->io_buffers[0]->n_lane);
   cJSON *data_pack = cJSON_CreateNumber(n_lane);
   cJSON_AddItemToObject(info, "unroll", data_pack);
 
@@ -2769,8 +2534,7 @@ static cJSON *extract_design_info_from_pe_dummy_module(struct autosa_gen *gen,
  * For PE modules, extract:
  * - simd factor if any
  */
-isl_stat sa_extract_design_info(struct autosa_gen *gen)
-{
+isl_stat sa_extract_design_info(struct autosa_gen *gen) {
   cJSON *design_info = cJSON_CreateObject();
   char *json_str = NULL;
   FILE *fp;
@@ -2780,21 +2544,19 @@ isl_stat sa_extract_design_info(struct autosa_gen *gen)
   char *file_path;
 
   /* kernel id */
-  //DBGVAR(std::cout, gen->kernel->id);
+  // DBGVAR(std::cout, gen->kernel->id);
   cJSON *kernel_id = cJSON_CreateNumber(gen->kernel->id);
   cJSON_AddItemToObject(design_info, "kernel_id", kernel_id);
 
   /* module */
   cJSON *modules = cJSON_CreateObject();
   cJSON_AddItemToObject(design_info, "modules", modules);
-  for (int i = 0; i < gen->n_hw_modules; i++)
-  {
+  for (int i = 0; i < gen->n_hw_modules; i++) {
     struct autosa_hw_module *module = gen->hw_modules[i];
     char *module_name;
     cJSON *info;
 
-    if (module->is_filter && module->is_buffer)
-    {
+    if (module->is_filter && module->is_buffer) {
       /* intra_trans */
       module_name = concat(ctx, module->name, "intra_trans");
       info = extract_design_info_from_module(gen, module, module_name, 0);
@@ -2807,8 +2569,7 @@ isl_stat sa_extract_design_info(struct autosa_gen *gen)
       cJSON_AddItemToObject(modules, module_name, info);
       free(module_name);
 
-      if (module->boundary)
-      {
+      if (module->boundary) {
         module_name = concat(ctx, module->name, "inter_trans_boundary");
         info = extract_design_info_from_module(gen, module, module_name, 0);
         cJSON_AddItemToObject(modules, module_name, info);
@@ -2821,45 +2582,40 @@ isl_stat sa_extract_design_info(struct autosa_gen *gen)
     cJSON_AddItemToObject(modules, module->name, info);
 
     /* boundary module */
-    if (module->boundary)
-    {
+    if (module->boundary) {
       module_name = concat(ctx, module->name, "boundary");
       info = extract_design_info_from_module(gen, module, module_name, 1);
       cJSON_AddItemToObject(modules, module_name, info);
       free(module_name);
     }
 
-    if (module->n_pe_dummy_modules > 0)
-    {
-      for (int i = 0; i < module->n_pe_dummy_modules; i++)
-      {
-        struct autosa_pe_dummy_module *dummy_module = module->pe_dummy_modules[i];
+    if (module->n_pe_dummy_modules > 0) {
+      for (int i = 0; i < module->n_pe_dummy_modules; i++) {
+        struct autosa_pe_dummy_module *dummy_module =
+            module->pe_dummy_modules[i];
         struct autosa_array_ref_group *group = dummy_module->io_group;
         char *module_name;
         /* Generate module name */
         isl_printer *p_str = isl_printer_to_str(ctx);
         p_str = isl_printer_print_str(p_str, group->array->name);
-        if (group->group_type == AUTOSA_IO_GROUP)
-        {
-          if (group->local_array->n_io_group > 1)
-          {
+        if (group->group_type == AUTOSA_IO_GROUP) {
+          if (group->local_array->n_io_group > 1) {
             p_str = isl_printer_print_str(p_str, "_");
             p_str = isl_printer_print_int(p_str, group->nr);
           }
-        }
-        else if (group->group_type == AUTOSA_DRAIN_GROUP)
-        {
+        } else if (group->group_type == AUTOSA_DRAIN_GROUP) {
           p_str = isl_printer_print_str(p_str, "_");
           p_str = isl_printer_print_str(p_str, "drain");
         }
         p_str = isl_printer_print_str(p_str, "_PE_dummy");
-        if (dummy_module->in) 
+        if (dummy_module->in)
           p_str = isl_printer_print_str(p_str, "_in");
         else
           p_str = isl_printer_print_str(p_str, "_out");
         module_name = isl_printer_get_str(p_str);
         isl_printer_free(p_str);
-        info = extract_design_info_from_pe_dummy_module(gen, dummy_module, module_name);
+        info = extract_design_info_from_pe_dummy_module(gen, dummy_module,
+                                                        module_name);
         cJSON_AddItemToObject(modules, module_name, info);
         free(module_name);
       }
@@ -2870,7 +2626,8 @@ isl_stat sa_extract_design_info(struct autosa_gen *gen)
         module_name = concat(ctx, module->name, "boundary_serialize");
       else
         module_name = concat(ctx, module->name, "serialize");
-      info = extract_design_info_from_serialize_module(gen, module, module_name);
+      info =
+          extract_design_info_from_serialize_module(gen, module, module_name);
       cJSON_AddItemToObject(modules, module_name, info);
       free(module_name);
     }
@@ -2882,8 +2639,7 @@ isl_stat sa_extract_design_info(struct autosa_gen *gen)
   p_str = isl_printer_print_str(p_str, "/resource_est/design_info.json");
   file_path = isl_printer_get_str(p_str);
   fp = fopen(file_path, "w");
-  if (!fp)
-  {
+  if (!fp) {
     printf("[AutoSA] Error: Cannot open file: %s\n", file_path);
   }
   fprintf(fp, "%s", json_str);

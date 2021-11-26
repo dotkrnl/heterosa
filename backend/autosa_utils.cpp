@@ -1,33 +1,28 @@
-#include <assert.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdexcept>
-#include <limits>
-
-#include <isl/space.h>
-#include <barvinok/isl.h>
-
 #include "autosa_utils.h"
 
-__isl_give isl_union_map *extract_sizes_from_str(isl_ctx *ctx, const char *str)
-{
-  if (!str)
-    return NULL;
+#include <assert.h>
+#include <barvinok/isl.h>
+#include <ctype.h>
+#include <isl/space.h>
+#include <string.h>
+
+#include <limits>
+#include <stdexcept>
+
+__isl_give isl_union_map *extract_sizes_from_str(isl_ctx *ctx,
+                                                 const char *str) {
+  if (!str) return NULL;
   return isl_union_map_read_from_str(ctx, str);
 }
 
-/* Concat the basic maps in the map "el" with the basic map list "user". 
+/* Concat the basic maps in the map "el" with the basic map list "user".
  */
-static isl_stat concat_basic_map(__isl_take isl_map *el, void *user)
-{
+static isl_stat concat_basic_map(__isl_take isl_map *el, void *user) {
   isl_basic_map_list **bmap_list = (isl_basic_map_list **)(user);
   isl_basic_map_list *bmap_list_sub = isl_map_get_basic_map_list(el);
-  if (!(*bmap_list))
-  {
+  if (!(*bmap_list)) {
     *bmap_list = bmap_list_sub;
-  }
-  else
-  {
+  } else {
     *bmap_list = isl_basic_map_list_concat(*bmap_list, bmap_list_sub);
   }
 
@@ -38,8 +33,7 @@ static isl_stat concat_basic_map(__isl_take isl_map *el, void *user)
 /* Extract the basic map list from the union map "umap".
  */
 __isl_give isl_basic_map_list *isl_union_map_get_basic_map_list(
-    __isl_keep isl_union_map *umap)
-{
+    __isl_keep isl_union_map *umap) {
   isl_map_list *map_list = isl_union_map_get_map_list(umap);
   isl_basic_map_list *bmap_list = NULL;
   isl_map_list_foreach(map_list, &concat_basic_map, &bmap_list);
@@ -48,8 +42,7 @@ __isl_give isl_basic_map_list *isl_union_map_get_basic_map_list(
   return bmap_list;
 }
 
-static isl_stat acc_n_basic_map(__isl_take isl_map *el, void *user)
-{
+static isl_stat acc_n_basic_map(__isl_take isl_map *el, void *user) {
   isl_size *n = (isl_size *)(user);
   isl_basic_map_list *bmap_list = isl_map_get_basic_map_list(el);
   *n = *n + isl_basic_map_list_n_basic_map(bmap_list);
@@ -60,8 +53,7 @@ static isl_stat acc_n_basic_map(__isl_take isl_map *el, void *user)
 
 /* Return the number of basic maps in the union map "umap".
  */
-isl_size isl_union_map_n_basic_map(__isl_keep isl_union_map *umap)
-{
+isl_size isl_union_map_n_basic_map(__isl_keep isl_union_map *umap) {
   isl_size n = 0;
   isl_map_list *map_list = isl_union_map_get_map_list(umap);
   isl_map_list_foreach(map_list, &acc_n_basic_map, &n);
@@ -71,10 +63,8 @@ isl_size isl_union_map_n_basic_map(__isl_keep isl_union_map *umap)
   return n;
 }
 
-__isl_give isl_basic_map *isl_basic_map_from_map(__isl_take isl_map *map)
-{
-  if (!map)
-    return NULL;
+__isl_give isl_basic_map *isl_basic_map_from_map(__isl_take isl_map *map) {
+  if (!map) return NULL;
 
   assert(isl_map_n_basic_map(map) == 1);
   isl_basic_map_list *bmap_list = isl_map_get_basic_map_list(map);
@@ -92,27 +82,22 @@ __isl_give isl_basic_map *isl_basic_map_from_map(__isl_take isl_map *map)
  * If there are no elements, then simply return the entire domain.
  */
 __isl_give isl_union_set *isl_multi_union_pw_aff_nonneg_union_set(
-    __isl_take isl_multi_union_pw_aff *mupa)
-{
+    __isl_take isl_multi_union_pw_aff *mupa) {
   int i;
   isl_size n;
   isl_union_pw_aff *upa;
   isl_union_set *nonneg;
 
   n = isl_multi_union_pw_aff_dim(mupa, isl_dim_set);
-  if (n < 0)
-    mupa = isl_multi_union_pw_aff_free(mupa);
-  if (!mupa)
-    return NULL;
+  if (n < 0) mupa = isl_multi_union_pw_aff_free(mupa);
+  if (!mupa) return NULL;
 
-  if (n == 0)
-    return isl_multi_union_pw_aff_domain(mupa);
+  if (n == 0) return isl_multi_union_pw_aff_domain(mupa);
 
   upa = isl_multi_union_pw_aff_get_union_pw_aff(mupa, 0);
   nonneg = isl_union_pw_aff_nonneg_union_set(upa);
 
-  for (i = 1; i < n; ++i)
-  {
+  for (i = 1; i < n; ++i) {
     isl_union_set *nonneg_i;
 
     upa = isl_multi_union_pw_aff_get_union_pw_aff(mupa, i);
@@ -125,11 +110,10 @@ __isl_give isl_union_set *isl_multi_union_pw_aff_nonneg_union_set(
   return nonneg;
 }
 
-/* Compute the set of elements in the domain of "pa" where it is nonnegative 
+/* Compute the set of elements in the domain of "pa" where it is nonnegative
  * and add this set to "uset".
  */
-static isl_stat nonneg_union_set(__isl_take isl_pw_aff *pa, void *user)
-{
+static isl_stat nonneg_union_set(__isl_take isl_pw_aff *pa, void *user) {
   isl_union_set **uset = (isl_union_set **)user;
 
   *uset = isl_union_set_add_set(*uset, isl_pw_aff_nonneg_set(pa));
@@ -141,8 +125,7 @@ static isl_stat nonneg_union_set(__isl_take isl_pw_aff *pa, void *user)
  * of "upa" where it is nonnegative.
  */
 __isl_give isl_union_set *isl_union_pw_aff_nonneg_union_set(
-    __isl_take isl_union_pw_aff *upa)
-{
+    __isl_take isl_union_pw_aff *upa) {
   isl_union_set *nonneg;
 
   nonneg = isl_union_set_empty(isl_union_pw_aff_get_space(upa));
@@ -155,15 +138,11 @@ __isl_give isl_union_set *isl_union_pw_aff_nonneg_union_set(
 
 /* Compare the two vectors, return 0 if equal.
  */
-int isl_vec_cmp(__isl_keep isl_vec *vec1, __isl_keep isl_vec *vec2)
-{
-  if (isl_vec_size(vec1) != isl_vec_size(vec2))
-    return 1;
+int isl_vec_cmp(__isl_keep isl_vec *vec1, __isl_keep isl_vec *vec2) {
+  if (isl_vec_size(vec1) != isl_vec_size(vec2)) return 1;
 
-  for (int i = 0; i < isl_vec_size(vec1); i++)
-  {
-    if (isl_vec_cmp_element(vec1, vec2, i))
-      return 1;
+  for (int i = 0; i < isl_vec_size(vec1); i++) {
+    if (isl_vec_cmp_element(vec1, vec2, i)) return 1;
   }
 
   return 0;
@@ -171,8 +150,7 @@ int isl_vec_cmp(__isl_keep isl_vec *vec1, __isl_keep isl_vec *vec2)
 
 /* Construct the string "<a>_<b>".
  */
-char *concat(isl_ctx *ctx, const char *a, const char *b)
-{
+char *concat(isl_ctx *ctx, const char *a, const char *b) {
   isl_printer *p;
   char *s;
 
@@ -186,14 +164,11 @@ char *concat(isl_ctx *ctx, const char *a, const char *b)
   return s;
 }
 
-bool isl_vec_is_zero(__isl_keep isl_vec *vec)
-{
+bool isl_vec_is_zero(__isl_keep isl_vec *vec) {
   int n = isl_vec_size(vec);
-  for (int i = 0; i < n; i++)
-  {
+  for (int i = 0; i < n; i++) {
     isl_val *val = isl_vec_get_element_val(vec, i);
-    if (!isl_val_is_zero(val))
-    {
+    if (!isl_val_is_zero(val)) {
       isl_val_free(val);
       return false;
     }
@@ -202,8 +177,7 @@ bool isl_vec_is_zero(__isl_keep isl_vec *vec)
   return true;
 }
 
-int suffixcmp(const char *s, const char *suffix)
-{
+int suffixcmp(const char *s, const char *suffix) {
   int start = strlen(s) - strlen(suffix);
   if (start < 0)
     return 1;
@@ -220,8 +194,7 @@ int suffixcmp(const char *s, const char *suffix)
  */
 __isl_give isl_set *add_bounded_parameters_dynamic(
     __isl_take isl_set *set, __isl_keep isl_multi_pw_aff *size,
-    __isl_keep isl_id_list *ids)
-{
+    __isl_keep isl_id_list *ids) {
   int i, len;
   unsigned nparam;
   isl_space *space;
@@ -231,8 +204,7 @@ __isl_give isl_set *add_bounded_parameters_dynamic(
   nparam = isl_set_dim(set, isl_dim_param);
   set = isl_set_add_dims(set, isl_dim_param, len);
 
-  for (i = 0; i < len; ++i)
-  {
+  for (i = 0; i < len; ++i) {
     isl_id *id;
 
     id = isl_id_list_get_id(ids, i);
@@ -241,13 +213,12 @@ __isl_give isl_set *add_bounded_parameters_dynamic(
 
   space = isl_space_params(isl_set_get_space(set));
   ls = isl_local_space_from_space(space);
-  for (i = 0; i < len; ++i)
-  {
+  for (i = 0; i < len; ++i) {
     isl_pw_aff *param, *size_i, *zero;
     isl_set *bound;
 
-    param = isl_pw_aff_var_on_domain(isl_local_space_copy(ls),
-                                     isl_dim_param, nparam + i);
+    param = isl_pw_aff_var_on_domain(isl_local_space_copy(ls), isl_dim_param,
+                                     nparam + i);
 
     size_i = isl_multi_pw_aff_get_pw_aff(size, i);
     bound = isl_pw_aff_lt_set(isl_pw_aff_copy(param), size_i);
@@ -263,8 +234,7 @@ __isl_give isl_set *add_bounded_parameters_dynamic(
   return set;
 }
 
-int convert_pwqpoly_to_int(__isl_keep isl_pw_qpolynomial *to_convert)
-{
+int convert_pwqpoly_to_int(__isl_keep isl_pw_qpolynomial *to_convert) {
   isl_ctx *ctx = isl_pw_qpolynomial_get_ctx(to_convert);
   int ret = -1;
   isl_printer *p;
@@ -277,10 +247,10 @@ int convert_pwqpoly_to_int(__isl_keep isl_pw_qpolynomial *to_convert)
   isl_printer_free(p);
 
   /* Check if the string only contains the digits */
-  for (int i = 0; i < strlen(str); i++) 
-  {
+  for (int i = 0; i < strlen(str); i++) {
     if (!isdigit(str[i])) {
-      throw std::runtime_error("[AutoSA] Error: The pw_qpolynomial contains non-digits.\n");
+      throw std::runtime_error(
+          "[AutoSA] Error: The pw_qpolynomial contains non-digits.\n");
     }
   }
 
@@ -290,8 +260,7 @@ int convert_pwqpoly_to_int(__isl_keep isl_pw_qpolynomial *to_convert)
   return ret;
 }
 
-char *isl_vec_to_str(__isl_keep isl_vec *vec)
-{
+char *isl_vec_to_str(__isl_keep isl_vec *vec) {
   isl_printer *p_str;
   p_str = isl_printer_to_str(isl_vec_get_ctx(vec));
   p_str = isl_printer_print_vec(p_str, vec);
@@ -302,10 +271,9 @@ char *isl_vec_to_str(__isl_keep isl_vec *vec)
 }
 
 /* Safe conversion to integer value. */
-long isl_val_get_num(__isl_take isl_val *val)
-{
+long isl_val_get_num(__isl_take isl_val *val) {
   long ret;
-  isl_val *denominator = isl_val_get_den_val(val)  ;
+  isl_val *denominator = isl_val_get_den_val(val);
   assert(isl_val_is_one(denominator));
   isl_val_free(denominator);
   ret = isl_val_get_num_si(val);
@@ -314,8 +282,8 @@ long isl_val_get_num(__isl_take isl_val *val)
   return ret;
 }
 
-static isl_stat find_pa_max(__isl_take isl_set *set, __isl_take isl_aff *aff, void *user)
-{
+static isl_stat find_pa_max(__isl_take isl_set *set, __isl_take isl_aff *aff,
+                            void *user) {
   long *max = (long *)user;
   if (isl_aff_is_cst(aff)) {
     *max = std::max(*max, isl_val_get_num(isl_aff_get_constant_val(aff)));
@@ -327,12 +295,11 @@ static isl_stat find_pa_max(__isl_take isl_set *set, __isl_take isl_aff *aff, vo
   return isl_stat_ok;
 }
 
-long compute_set_max(__isl_keep isl_set *set, int dim)
-{
+long compute_set_max(__isl_keep isl_set *set, int dim) {
   long max = std::numeric_limits<long>::min();
   isl_pw_aff *pa = isl_set_dim_max(isl_set_copy(set), dim);
   isl_pw_aff_foreach_piece(pa, &find_pa_max, &max);
   isl_pw_aff_free(pa);
 
-  return max;  
+  return max;
 }

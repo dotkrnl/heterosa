@@ -5,7 +5,6 @@
 #include <isl/id.h>
 #include <isl/id_to_ast_expr.h>
 #include <isl/polynomial.h>
-
 #include <pet.h>
 
 #include "ppcg.h"

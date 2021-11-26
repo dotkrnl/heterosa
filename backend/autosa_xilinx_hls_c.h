@@ -2,16 +2,16 @@
 #define _AUTOSA_XILINX_HLS_C_H
 
 #include <pet.h>
-#include "ppcg_options.h"
+
 #include "ppcg.h"
+#include "ppcg_options.h"
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
-	int generate_autosa_xilinx_hls_c(isl_ctx *ctx, struct ppcg_options *options,
-																	 const char *input);
+int generate_autosa_xilinx_hls_c(isl_ctx *ctx, struct ppcg_options *options,
+                                 const char *input);
 
 #ifdef __cplusplus
 }
