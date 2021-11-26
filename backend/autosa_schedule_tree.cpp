@@ -129,159 +129,6 @@ isl_bool is_permutable_node(__isl_keep isl_schedule_node *node)
   return isl_bool_true;
 }
 
-/* Examines if the node is a permutable band node. If so, 
- * increase the count of permutable node.
- */
-static isl_bool is_permutable_node_cnt(
-    __isl_keep isl_schedule_node *node, void *user)
-{
-  isl_val *n_permutable_node = (isl_val *)(user);
-  if (!node)
-    return isl_bool_error;
-
-  if (is_permutable_node(node) == isl_bool_true)
-    n_permutable_node = isl_val_add_ui(n_permutable_node, 1);
-
-  return isl_bool_true;
-}
-
-/* Examines that if the program only contains one permutable node and there is
- * no other node beside it.
- */
-isl_bool has_single_permutable_node(__isl_keep isl_schedule *schedule)
-{
-  isl_schedule_node *root;
-  root = isl_schedule_get_root(schedule);
-  isl_val *n_permutable_node = isl_val_zero(isl_schedule_get_ctx(schedule));
-  isl_bool all_permutable_node = isl_schedule_node_every_descendant(root,
-                                                                    &is_permutable_node_cnt, n_permutable_node);
-  isl_schedule_node_free(root);
-
-  if (all_permutable_node && isl_val_is_one(n_permutable_node))
-  {
-    isl_val_free(n_permutable_node);
-    return isl_bool_true;
-  }
-  else
-  {
-    isl_val_free(n_permutable_node);
-    return isl_bool_false;
-  }
-}
-
-/* Examines if the dependence is uniform based on the partial schedule
- * in the node. We will calculate the dependence vector and examine 
- * if each dimension is a constant.
- */
-isl_bool is_dep_uniform_at_node(__isl_keep isl_schedule_node *node, void *user)
-{
-  isl_basic_map *dep = (isl_basic_map *)(user);
-  if (isl_schedule_node_get_type(node) != isl_schedule_node_band)
-    return isl_bool_true;
-
-  /* By this stage we know that if a node is a band node, it is a 
-   * permutable band node to be analyzed. 
-   */
-  isl_multi_union_pw_aff *p_sc = isl_schedule_node_band_get_partial_schedule(node);
-  isl_union_pw_multi_aff *contraction = isl_schedule_node_get_subtree_contraction(node);
-  p_sc = isl_multi_union_pw_aff_pullback_union_pw_multi_aff(p_sc, contraction);
-
-  isl_bool is_uniform = isl_bool_true;
-  for (int i = 0; i < isl_schedule_node_band_n_member(node); i++)
-  {
-    isl_union_pw_aff *p_sc_hyp = isl_multi_union_pw_aff_get_union_pw_aff(p_sc, i);
-    /* Obtain the schedule for the src statment. */
-    isl_space *space = isl_basic_map_get_space(dep);
-    isl_space *src_space = isl_space_domain(isl_space_copy(space));
-    isl_space *dest_space = isl_space_range(space);
-
-    isl_pw_aff *src_sc;
-    isl_pw_aff_list *p_sc_hyp_list = isl_union_pw_aff_get_pw_aff_list(p_sc_hyp);
-    for (int j = 0; j < isl_union_pw_aff_n_pw_aff(p_sc_hyp); j++)
-    {
-      isl_pw_aff *single_sc = isl_pw_aff_list_get_pw_aff(p_sc_hyp_list, j);
-      isl_space *single_sc_stmt = isl_space_domain(isl_pw_aff_get_space(single_sc));
-      if (isl_space_is_equal(src_space, single_sc_stmt))
-      {
-        isl_space_free(single_sc_stmt);
-        src_sc = single_sc;
-        break;
-      }
-      isl_pw_aff_free(single_sc);
-      isl_space_free(single_sc_stmt);
-    }
-    isl_pw_aff_list_free(p_sc_hyp_list);
-    isl_space_free(src_space);
-
-    /* Obtain the schedule for the dest statement. */
-    isl_pw_aff *dest_sc;
-    p_sc_hyp_list = isl_union_pw_aff_get_pw_aff_list(p_sc_hyp);
-    for (int j = 0; j < isl_union_pw_aff_n_pw_aff(p_sc_hyp); j++)
-    {
-      isl_pw_aff *single_sc = isl_pw_aff_list_get_pw_aff(p_sc_hyp_list, j);
-      isl_space *single_sc_stmt = isl_space_domain(isl_pw_aff_get_space(single_sc));
-      if (isl_space_is_equal(dest_space, single_sc_stmt))
-      {
-        isl_space_free(single_sc_stmt);
-        dest_sc = single_sc;
-        break;
-      }
-      isl_pw_aff_free(single_sc);
-      isl_space_free(single_sc_stmt);
-    }
-    isl_pw_aff_list_free(p_sc_hyp_list);
-    isl_space_free(dest_space);
-
-    /* Compute the dependence distance at the current hyperplane. */
-    /* Step 1: Extend the scheduling function. */
-    isl_size src_sc_dim = isl_pw_aff_dim(src_sc, isl_dim_in);
-    isl_size dest_sc_dim = isl_pw_aff_dim(dest_sc, isl_dim_in);
-    src_sc = isl_pw_aff_insert_dims(src_sc, isl_dim_in, src_sc_dim, dest_sc_dim);
-    dest_sc = isl_pw_aff_insert_dims(dest_sc, isl_dim_in, 0, src_sc_dim);
-    for (int j = 0; j < dest_sc_dim; j++)
-    {
-      isl_pw_aff_set_dim_id(src_sc, isl_dim_in, src_sc_dim + j, isl_pw_aff_get_dim_id(dest_sc, isl_dim_in, src_sc_dim + j));
-    }
-    for (int j = 0; j < src_sc_dim; j++)
-    {
-      isl_pw_aff_set_dim_id(dest_sc, isl_dim_in, j, isl_pw_aff_get_dim_id(src_sc, isl_dim_in, j));
-    }
-
-    isl_pw_aff *dis_sc = isl_pw_aff_sub(dest_sc, src_sc);
-
-    /* Step 2: Convert the basic_map into basic_set. */
-    isl_mat *eq_mat = isl_basic_map_equalities_matrix(dep,
-                                                      isl_dim_in, isl_dim_out, isl_dim_div, isl_dim_param, isl_dim_cst);
-    isl_mat *ieq_mat = isl_basic_map_inequalities_matrix(dep,
-                                                         isl_dim_in, isl_dim_out, isl_dim_div, isl_dim_param, isl_dim_cst);
-
-    isl_basic_set *dep_set = isl_basic_set_from_constraint_matrices(
-        isl_space_domain(isl_pw_aff_get_space(dis_sc)),
-        eq_mat, ieq_mat,
-        isl_dim_set, isl_dim_div, isl_dim_param, isl_dim_cst);
-
-    /* Step 3: Intersect the scheduling function with the domain. */
-    isl_pw_aff *dis = isl_pw_aff_intersect_domain(dis_sc,
-                                                  isl_set_from_basic_set(isl_basic_set_copy(dep_set)));
-
-    isl_union_pw_aff_free(p_sc_hyp);
-    isl_basic_set_free(dep_set);
-
-    /* Examine if the dependence distance is constant. */
-    if (!isl_pw_aff_is_cst(dis))
-    {
-      is_uniform = isl_bool_false;
-      isl_pw_aff_free(dis);
-      break;
-    }
-
-    isl_pw_aff_free(dis);
-  }
-
-  isl_multi_union_pw_aff_free(p_sc);
-  return is_uniform;
-}
-
 /* Apply the schedule on the dependence and check if every dimension is a constant. 
  * Dep in the form of S1[]->S2[].
  */
@@ -407,74 +254,6 @@ static isl_bool update_depth(__isl_keep isl_schedule_node *node, void *user)
     *depth = node_depth;
 
   return isl_bool_false;
-}
-
-/* Compute the dependence distance of dependence "dep" under the schedule "schedule".
- */
-__isl_give isl_vec *get_dep_dis_at_schedule(__isl_keep isl_basic_map *dep,
-                                            __isl_keep isl_schedule *schedule)
-{
-  isl_schedule_node *root = isl_schedule_get_root(schedule);
-  isl_ctx *ctx = isl_basic_map_get_ctx(dep);
-  isl_union_map *full_sched = isl_schedule_node_get_subtree_schedule_union_map(root);
-  isl_schedule_node_free(root);
-
-  /* Extract the iterator num. */
-  int iter_num = 0;
-  isl_schedule_foreach_schedule_node_top_down(schedule, &update_depth, &iter_num);
-
-  isl_union_map *dep_sched = isl_union_map_apply_domain(isl_union_map_from_map(isl_map_from_basic_map(isl_basic_map_copy(dep))),
-                                                        isl_union_map_copy(full_sched));
-  dep_sched = isl_union_map_apply_range(dep_sched, full_sched);
-
-  isl_map *dep_map = isl_map_from_union_map(dep_sched);
-  isl_basic_map *dep_bmap = isl_basic_map_from_map(isl_map_copy(dep_map));
-
-  isl_set *src_dep_domain = isl_map_domain(isl_map_copy(dep_map));
-  isl_map *src_dep_domain_map = isl_set_identity(src_dep_domain);
-  isl_multi_pw_aff *src_mpa = isl_multi_pw_aff_identity(isl_map_get_space(src_dep_domain_map));
-  isl_map_free(src_dep_domain_map);
-
-  isl_set *dest_dep_domain = isl_map_range(dep_map);
-  isl_map *dest_dep_domain_map = isl_set_identity(dest_dep_domain);
-  isl_multi_pw_aff *dest_mpa = isl_multi_pw_aff_identity(isl_map_get_space(dest_dep_domain_map));
-  isl_map_free(dest_dep_domain_map);
-
-  /* Add dims. */
-  isl_size src_dim = isl_multi_pw_aff_dim(src_mpa, isl_dim_in);
-  isl_size dest_dim = isl_multi_pw_aff_dim(dest_mpa, isl_dim_in);
-  src_mpa = isl_multi_pw_aff_insert_dims(src_mpa, isl_dim_in, src_dim, dest_dim);
-  dest_mpa = isl_multi_pw_aff_insert_dims(dest_mpa, isl_dim_in, 0, src_dim);
-
-  isl_multi_pw_aff *dep_dis_mpa = isl_multi_pw_aff_sub(dest_mpa, src_mpa);
-
-  /* Convert the basic map to basic_set. */
-  isl_mat *eq_mat = isl_basic_map_equalities_matrix(dep_bmap,
-                                                    isl_dim_in, isl_dim_out, isl_dim_div, isl_dim_param, isl_dim_cst);
-  isl_mat *ieq_mat = isl_basic_map_inequalities_matrix(dep_bmap,
-                                                       isl_dim_in, isl_dim_out, isl_dim_div, isl_dim_param, isl_dim_cst);
-  isl_basic_set *dep_bset = isl_basic_set_from_constraint_matrices(
-      isl_space_domain(isl_multi_pw_aff_get_space(dep_dis_mpa)),
-      eq_mat, ieq_mat,
-      isl_dim_set, isl_dim_div, isl_dim_param, isl_dim_cst);
-
-  dep_dis_mpa = isl_multi_pw_aff_intersect_domain(dep_dis_mpa,
-                                                  isl_set_from_basic_set(isl_basic_set_copy(dep_bset)));
-  isl_space *space = isl_multi_pw_aff_get_space(dep_dis_mpa);
-  isl_vec *dep_dis = isl_vec_zero(ctx, isl_space_dim(space, isl_dim_out));
-  for (int i = 0; i < isl_vec_size(dep_dis); i++)
-  {
-    isl_pw_aff *pa = isl_multi_pw_aff_get_pw_aff(dep_dis_mpa, i);
-    isl_val *val = isl_pw_aff_eval(pa, isl_basic_set_sample_point(isl_basic_set_copy(dep_bset)));
-    dep_dis = isl_vec_set_element_val(dep_dis, i, val);
-  }
-
-  isl_space_free(space);
-  isl_basic_set_free(dep_bset);
-  isl_basic_map_free(dep_bmap);
-  isl_multi_pw_aff_free(dep_dis_mpa);
-
-  return dep_dis;
 }
 
 /* Compute the dependence distance vector of the dependence under the 
@@ -1033,75 +812,6 @@ __isl_give isl_schedule_node *autosa_node_interchange(
   return node;
 }
 
-/* Given two nested nodes,
- * N2
- * |
- * N1
- * Interchange the two nodes to
- * N1
- * |
- * N2
- * The input "node" points to N1.
- * Return a pointer to node N1.
- * Besides, currently we only support interchanging band nodes and mark nodes.
- */
-__isl_give isl_schedule_node *autosa_node_interchange_up(
-    __isl_take isl_schedule_node *node)
-{
-  enum isl_schedule_node_type t;
-  enum isl_schedule_node_type parent_t;
-  isl_schedule_node *parent_node;
-  struct autosa_node_band_prop *prop;
-  isl_id *id;
-
-  if (!isl_schedule_node_has_parent(node))
-  {
-    return node;
-  }
-  t = isl_schedule_node_get_type(node);
-  if (!(t == isl_schedule_node_band || t == isl_schedule_node_mark))
-  {
-    isl_die(isl_schedule_node_get_ctx(node), isl_error_unsupported,
-            "only band and mark nodes are supported", return node);
-  }
-  parent_node = isl_schedule_node_parent(isl_schedule_node_copy(node));
-  parent_t = isl_schedule_node_get_type(parent_node);
-  if (!(parent_t == isl_schedule_node_band || parent_t == isl_schedule_node_mark))
-  {
-    isl_die(isl_schedule_node_get_ctx(node), isl_error_unsupported,
-            "only band and mark nodes are supported", return node);
-  }
-  isl_schedule_node_free(parent_node);
-
-  /* Save the current node. */
-  if (t == isl_schedule_node_band)
-  {
-    prop = extract_node_band_prop(node);
-  }
-  else if (t == isl_schedule_node_mark)
-  {
-    id = isl_schedule_node_mark_get_id(node);
-  }
-
-  /* Delete the current node. */
-  node = isl_schedule_node_delete(node);
-
-  /* Insert the old node. */
-  node = isl_schedule_node_parent(node);
-  if (t == isl_schedule_node_band)
-  {
-    node = isl_schedule_node_insert_partial_schedule(node,
-                                                     isl_multi_union_pw_aff_copy(prop->mupa));
-    node = restore_node_band_prop(node, prop);
-  }
-  else if (t == isl_schedule_node_mark)
-  {
-    node = isl_schedule_node_insert_mark(node, id);
-  }
-
-  return node;
-}
-
 /* If the "node" is a permutable band node, return false.
  */
 isl_bool no_permutable_node(__isl_keep isl_schedule_node *node, void *user)
@@ -1110,22 +820,6 @@ isl_bool no_permutable_node(__isl_keep isl_schedule_node *node, void *user)
     return isl_bool_false;
   else
     return isl_bool_true;
-}
-
-/* If any band member is non-parallel, return false. 
- */
-isl_bool all_parallel_node(__isl_keep isl_schedule_node *node, void *user)
-{
-  if (isl_schedule_node_get_type(node) == isl_schedule_node_band)
-  {
-    int n = isl_schedule_node_band_n_member(node);
-    for (int i = 0; i < n; i++)
-    {
-      if (!isl_schedule_node_band_member_get_coincident(node, i))
-        return isl_bool_false;
-    }
-  }
-  return isl_bool_true;
 }
 
 /* This function tests if the loops above the "array" mark carry any flow
@@ -1837,23 +1531,6 @@ __isl_give isl_union_set *set_schedule_eq(
   return isl_multi_union_pw_aff_zero_union_set(mupa);
 }
 
-__isl_give isl_union_set *set_schedule_neq(
-    __isl_keep isl_schedule_node *node, __isl_keep isl_id_list *names)
-{
-  isl_union_set *uset, *domain;
-  isl_union_map *umap;
-
-  if (!node)
-    return NULL;
-  
-  uset = set_schedule_eq(node, names);
-  umap = isl_schedule_node_band_get_partial_schedule_union_map(node);
-  domain = isl_union_map_domain(umap);
-  uset = isl_union_set_subtract(domain, uset);
-
-  return uset;
-}
-
 /* Construct schedule constraints from the dependences in prog->scop and
  * the array order dependences in prog->array_order.
  *
@@ -2242,13 +1919,6 @@ static int node_is_array(__isl_keep isl_schedule_node *node)
   return is_marked(node, "array");
 }
 
-/* Is "node" a mark node with an identifier called "anchor"?
- */
-static int node_is_anchor(__isl_keep isl_schedule_node *node)
-{
-  return is_marked(node, "anchor");
-}
-
 /* Is "node" a mark node with an identifier called "local"?
  */
 static int node_is_local(__isl_keep isl_schedule_node *node)
@@ -2275,32 +1945,6 @@ static int node_is_kernel(__isl_keep isl_schedule_node *node)
 static int node_is_mark(__isl_keep isl_schedule_node *node, const char *mark)
 {
   return is_marked(node, mark);
-}
-
-/* Is "node" a mark node with an identifier called "io_L[x]"?
- */
-static int node_is_io_mark(__isl_keep isl_schedule_node *node)
-{
-  isl_id *mark;
-  const char *name;
-  int has_name;
-
-  if (!node)
-    return -1;
-
-  if (isl_schedule_node_get_type(node) != isl_schedule_node_mark)
-    return 0;
-
-  mark = isl_schedule_node_mark_get_id(node);
-  if (!mark)
-    return -1;
-
-  name = isl_id_get_name(mark);
-  has_name = strncmp(name, "io_L", strlen("io_L"));
-
-  isl_id_free(mark);
-
-  return has_name;
 }
 
 /* Assuming "node" is a filter node, does it correspond to the branch
@@ -2558,24 +2202,6 @@ __isl_give isl_schedule_node *autosa_tree_move_up_to_mark(
 }
 
 /* Move down the branch between "kernel" and "pe" until
- * the first "io_L[x]" mark is reached, where the branch containing the "io_L[x]"
- * mark is identified by the domain elements in "core".
- */
-__isl_give isl_schedule_node *autosa_tree_move_down_to_first_io_mark(
-    __isl_take isl_schedule_node *node, __isl_keep isl_union_set *core)
-{
-  int is_io_mark;
-
-  while ((is_io_mark = node_is_io_mark(node)) == 0)
-    node = core_child(node, core);
-
-  if (is_io_mark < 0)
-    node = isl_schedule_node_free(node);
-
-  return node;
-}
-
-/* Move down the branch between "kernel" and "pe" until
  * the "io_L[io_level]" mark is reached, where the branch containing the io
  * mark is identified by the domain elements in "core".
  */
@@ -2602,37 +2228,11 @@ __isl_give isl_schedule_node *autosa_tree_move_down_to_io_mark(
   return node;
 }
 
-/* Move up the tree underneath the "anchor" mark until the "anchor" mark is reached. 
- */
-__isl_give isl_schedule_node *autosa_tree_move_up_to_anchor(
-    __isl_take isl_schedule_node *node)
-{
-  int is_anchor;
-
-  while ((is_anchor = node_is_anchor(node)) == 0)
-    node = isl_schedule_node_parent(node);
-
-  if (is_anchor < 0)
-    node = isl_schedule_node_free(node);
-
-  return node;
-}
-
 /* Is "node" a mark node with an identifier called "kernel"?
  */
 int autosa_tree_node_is_kernel(__isl_keep isl_schedule_node *node)
 {
   return is_marked(node, "kernel");
-}
-
-/* Is "node" a mark node with an identifier called "mark"?
- */
-int autosa_tree_node_is_mark(__isl_keep isl_schedule_node *node, char *mark)
-{
-  if (mark == NULL)
-    return (isl_schedule_node_get_type(node) == isl_schedule_node_mark);
-
-  return is_marked(node, mark);
 }
 
 /* Insert a mark node with identifier "local" in front of "node".

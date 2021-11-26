@@ -142,52 +142,6 @@ static __isl_give isl_union_set *set_schedule_ge(
   return isl_multi_union_pw_aff_nonneg_union_set(mupa);
 }
 
-/* Return constraints on the domain elements that less or equal to a sequence of
- * parameters called "names", to the partial schedule of "node".
- * The number of members of the band node "node" should be smaller
- * than or equal to the number of elements in "names". 
- * If it is smaller, then the first elements of "names" are equated to zero.
- */
-static __isl_give isl_union_set *set_schedule_le(
-    __isl_keep isl_schedule_node *node, __isl_keep isl_id_list *names)
-{
-  int n, n_zero;
-  isl_multi_union_pw_aff *mupa, *mupa2;
-  isl_multi_aff *ma;
-  isl_space *space;
-  isl_union_set *domain;
-
-  if (!node)
-    return NULL;
-  n = isl_id_list_n_id(names);
-  if (n == 0)
-    return isl_schedule_node_get_universe_domain(node);
-  n_zero = n - isl_schedule_node_band_n_member(node);
-
-  mupa = isl_schedule_node_band_get_partial_schedule(node);
-  space = isl_multi_union_pw_aff_get_space(mupa);
-  space = isl_space_params(space);
-  space = isl_space_set_from_params(space);
-  space = isl_space_add_dims(space, isl_dim_set, n_zero);
-  ma = isl_multi_aff_zero(space);
-  domain = isl_schedule_node_get_universe_domain(node);
-  /* Generate the mupa that is on the same domain of partial schedule, with
-   * a function that maps to the n_zero dims to zero. */
-  mupa2 = isl_multi_union_pw_aff_multi_aff_on_domain(
-      isl_union_set_copy(domain), ma);
-
-  /* Generate the mupa with the n_zero dims as paramters and equal zero. */
-  mupa = isl_multi_union_pw_aff_range_product(mupa2, mupa);
-  space = isl_multi_union_pw_aff_get_space(mupa);
-  ma = parameter_vector(space, names);
-  /* Generate the mupa that is on the same domain of partial schedule, with
-   * a function that maps the domain elements to the parameters. */
-  mupa2 = isl_multi_union_pw_aff_multi_aff_on_domain(domain, ma);
-  mupa = isl_multi_union_pw_aff_sub(mupa2, mupa);
-
-  return isl_multi_union_pw_aff_nonneg_union_set(mupa);
-}
-
 /* Construct an isl_multi_val for use as tile sizes for tiling "node"
  * from the elements in "tile_size".
  */
@@ -401,26 +355,6 @@ static __isl_give isl_union_set *schedule_eq_lb(
   domain = isl_union_map_domain(prefix);
 
   return domain;
-}
-
-/* Return constraints on the domain elements that not equate the partial schedule
- * of "node" to the lower bound of partial schedule. 
- */
-static __isl_give isl_union_set *schedule_neq_lb(
-    __isl_keep isl_schedule_node *node)
-{
-  isl_union_set *uset, *domain;
-  isl_union_map *umap;
-
-  if (!node)
-    return NULL;
-
-  uset = schedule_eq_lb(node);
-  umap = isl_schedule_node_band_get_partial_schedule_union_map(node);
-  domain = isl_union_map_domain(umap);
-  uset = isl_union_set_subtract(domain, uset);
-
-  return uset;
 }
 
 /* Return constraints on the domain elements that equate the partial schedule
@@ -1940,72 +1874,6 @@ static __isl_give isl_schedule *generate_io_module_inter_trans(
   return new_sched;
 }
 
-/* The "node" points to the kernel mark. 
- * This function should be called before inserting module ids into the schedule.
- */
-static __isl_give isl_schedule_node *insert_io_group_guard(
-  __isl_take isl_schedule_node *node, 
-  struct autosa_gen *gen,
-  struct autosa_kernel *kernel,
-  int n_io_ids)
-{
-  isl_union_set *domain;
-  isl_set *guard;
-  isl_schedule_node *node_tmp;
-  isl_id_list *io_ids;
-  
-  node_tmp = isl_schedule_node_copy(node);
-  io_ids = ppcg_scop_generate_names(gen->prog->scop, n_io_ids, "p");
-  node_tmp = add_io_ids_filter(node_tmp, io_ids, 1, n_io_ids, 0, 0, 0);  
-  domain = isl_schedule_node_get_domain(node_tmp);
-  guard = isl_union_set_params(domain);
-  guard = isl_set_from_params(guard);
-  isl_schedule_node_free(node_tmp);
-  isl_id_list_free(io_ids);
-  
-//#ifdef _DEBUG
-//  DBGSET(stdout, guard, isl_set_get_ctx(guard));
-//#endif
-
-  //node = autosa_tree_move_up_to_kernel(node);
-  node = isl_schedule_node_child(node, 0); // context;
-  node = isl_schedule_node_child(node, 0); // filter;
-  node = isl_schedule_node_child(node, 0);
-  node = isl_schedule_node_insert_guard(node, guard);
-  node = autosa_tree_move_up_to_kernel(node);
-
-//#ifdef _DEBUG
-//  DBGSCHDNODE(stdout, node, isl_schedule_node_get_ctx(node));
-//#endif
-
-  return node;
-}
-
-static __isl_give isl_set *get_io_group_guard(
-  __isl_keep isl_schedule_node *node,
-  struct autosa_gen *gen,
-  struct autosa_kernel *kernel,
-  int n_io_ids)
-{
-  isl_union_set *domain;
-  isl_set *guard;
-  isl_schedule_node *node_tmp;
-  isl_id_list *io_ids;
-  int depth;
-  
-  node_tmp = isl_schedule_node_copy(node);
-  io_ids = ppcg_scop_generate_names(gen->prog->scop, n_io_ids, "p");  
-  node_tmp = add_io_ids_filter(node_tmp, io_ids, 1, n_io_ids, 0, 0, 0);  
-  isl_id_list_free(io_ids);
-
-  domain = isl_schedule_node_get_domain(node_tmp);
-  guard = isl_union_set_params(domain);
-  guard = isl_set_from_params(guard);
-  isl_schedule_node_free(node_tmp);
-  
-  return guard;
-}
-
 /* Generate the intra_trans module for the I/O group.
  * We will add data transfer statements into the schedule tree that 
  * transfer data to/from the lower-level modules,
@@ -3078,53 +2946,6 @@ static __isl_give isl_schedule *generate_serialize_schedule(
   isl_union_set_free(group_core);
 
   return sched;
-}
-
-/* This function recalculates the bound of io module ids for the io module.
- * We will insert a filter that equals the io id to the 
- * sched dim at each dimension.
- * Then we will compute the domain of these io ids and use them to update the 
- * io schedule context.
- * The node points to "array".
- */
-static __isl_give isl_schedule_node *update_io_module_context(
-  __isl_take isl_schedule_node *node,
-  struct autosa_gen *gen,
-  int io_level, int n_io_ids)
-{
-  isl_union_set *domain;
-  isl_ctx *ctx;
-  isl_set *grid;
-  isl_schedule_node *tmp_node;
-  isl_id_list *io_ids;
-  isl_set *context;
-
-  ctx = isl_schedule_node_get_ctx(node);
-  tmp_node = isl_schedule_node_copy(node);
-
-  /* Add io ids filters down to the io_level */
-  io_ids = ppcg_scop_generate_names(gen->prog->scop, n_io_ids, "p");
-  tmp_node = add_io_ids_filter(tmp_node, io_ids, 1, n_io_ids, 0, 0, 0);
-  
-  /* Collect the domain down to the io_level */
-  domain = isl_schedule_node_get_domain(tmp_node);
-  grid = isl_union_set_params(domain);
-  grid = isl_set_from_params(grid);
-
-  isl_id_list_free(io_ids);
-  isl_schedule_node_free(tmp_node);
-
-  /* Update the context. */
-  node = autosa_tree_move_up_to_kernel(node);
-  node = isl_schedule_node_child(node, 0); // context
-  context = isl_schedule_node_context_get_context(node);  
-  context = isl_set_intersect(context, grid);
-  context = isl_set_coalesce(context);
-
-  node = isl_schedule_node_delete(node);
-  node = isl_schedule_node_insert_context(node, context);
-
-  return node;
 }
 
 /* Generate the schedule for the I/O module.  
@@ -8939,63 +8760,6 @@ static __isl_give isl_ast_node *create_drain_merge_leaf(struct autosa_kernel *ke
   if (!id)
     autosa_kernel_stmt_free(stmt);
   return isl_ast_node_set_annotation(node, id);
-}
-
-///* Exatract the boundary field from the module call type, which is in the format of:
-// * io_module.[].boundary
-// * or 
-// * module_call.module_name.boundary
-// * */
-//static int extract_is_boundary(isl_ctx *ctx, const char *type)
-//{
-//  int ret_val;
-//  char *boundary = extract_io_stmt_str_field(ctx, type, 2);
-//  if (boundary && !strcmp(boundary, "boundary")) {
-//    ret_val = 1;
-//  } else {
-//    ret_val = 0;
-//  }
-//  free(boundary);
-//  return ret_val;
-//}
-
-/* Extract the module_name field from the module call type, which is in the format of:
- * module_call.module_name.boundary 
- */
-static char *extract_module_name(isl_ctx *ctx, const char *type)
-{
-  char ch;
-  int loc = 0;
-  int n_dot = 0;
-  isl_printer *p_str;
-  char *module_name;
-
-  while ((ch = type[loc]) != '\0')
-  {
-    if (ch == '.')
-      n_dot++;
-    if (n_dot == 1)
-      break;
-    loc++;
-  }
-
-  loc++;
-  p_str = isl_printer_to_str(ctx);
-  while ((ch = type[loc]) != '\0')
-  {
-    if (ch == '.')
-      break;
-    char buf[2];
-    buf[0] = ch;
-    buf[1] = '\0';
-    p_str = isl_printer_print_str(p_str, buf);
-    loc++;
-  }
-
-  module_name = isl_printer_get_str(p_str);
-  isl_printer_free(p_str);
-
-  return module_name;
 }
 
 /* There are two types of module call statements:

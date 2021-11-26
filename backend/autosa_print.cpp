@@ -595,18 +595,6 @@ void print_func_iterators(FILE *out,
   print_iterators(out, type, func->inst_ids, dims);
 }
 
-__isl_give isl_printer *print_serialize_counter(
-  __isl_take isl_printer *p, struct autosa_hw_module *module)
-{
-  p = isl_printer_start_line(p);
-  p = isl_printer_print_str(p, "unsigned int ");
-  p = isl_printer_print_str(p, module->io_groups[0]->array->name);
-  p = isl_printer_print_str(p, "_cnt = 0;");
-  p = isl_printer_end_line(p);
-
-  return p;
-}
-
 /* Print the arguments to a host serialization functioin declaration or call.
  * If "types" is set, then print a declaration (including the types of the arguments).
  * 

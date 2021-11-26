@@ -82,7 +82,6 @@ static int populate_array_references_pe(struct autosa_local_array_info *local,
                                         struct autosa_array_ref_group **groups, struct autosa_group_data *data)
 {
   int i;
-  int j;
   int n;
   isl_ctx *ctx = isl_union_map_get_ctx(data->pe_sched);
 
@@ -1011,9 +1010,6 @@ static int group_io(struct autosa_kernel *kernel,
 
       if (!groups[i])
         return -1;
-      //			if (compute_bounds &&
-      //			    compute_group_bounds_io(kernel, groups[i], data) < 0)
-      //				return -1;
     }
   }
 
@@ -1212,7 +1208,6 @@ static __isl_give isl_schedule_node *insert_io_module_context(
       isl_union_map *umap;
       isl_union_set *uset;
       isl_multi_pw_aff *size;
-      isl_id *id;
       isl_id_list *ids;
       isl_union_set *domain;
       isl_union_pw_multi_aff *contraction;
@@ -1253,7 +1248,6 @@ static __isl_give isl_schedule_node *hbm_optimize(
   isl_union_set *uset;
   isl_set *set;
   isl_basic_set *bset;
-  isl_union_map *umap;
   isl_val *val;
   isl_ctx *ctx = gen->ctx;
   int tile_len = 1;
@@ -1348,7 +1342,7 @@ static __isl_give isl_schedule_node *hbm_optimize(
   free(module_name);
 
   /* Check if the tile factor is greater or equal than the loop bound. */
-  umap = isl_schedule_node_band_get_partial_schedule_union_map(node);
+  auto umap = isl_schedule_node_band_get_partial_schedule_union_map(node);
   uset = isl_union_map_range(umap);
   set = isl_set_from_union_set(uset);
   val = isl_val_zero(ctx);
@@ -1573,12 +1567,9 @@ static isl_bool io_group_carried_by_array_loops(
   isl_union_pw_multi_aff *tagger;
   isl_union_set *domain, *access_domain;
   struct autosa_prog *prog = kernel->prog;
-  isl_set *prefix_range;
-  int n_sched_dim;
-  isl_map *sched_identity;
   isl_union_map *external, *universe;
   isl_union_set *tag_set;
-  int empty;  
+  int empty;
 
   node = isl_schedule_node_copy(node);
   node = autosa_tree_move_down_to_array(node, kernel->core);
@@ -2232,14 +2223,12 @@ static __isl_give isl_multi_aff *strided_tile(
     __isl_keep isl_multi_aff *insert_array)
 {
   int i;
-  isl_ctx *ctx;
   isl_multi_aff *shift;
   isl_multi_val *stride;
   isl_space *space2;
   isl_local_space *ls;
   isl_multi_aff *tiling;
 
-  ctx = isl_space_get_ctx(space);
   space2 = isl_space_domain(isl_space_copy(space));
   ls = isl_local_space_from_space(space2);
   space2 = isl_space_range(isl_space_copy(space));
@@ -2385,7 +2374,6 @@ static isl_stat compute_group_bounds_drain_at_node_PE(
   int use_local = kernel->options->autosa->use_local_memory;
   isl_stat r = isl_stat_ok;
   isl_union_map *access;
-  isl_map *acc;
   isl_bool ok;
 
   if (!use_local)
@@ -2405,7 +2393,7 @@ static isl_stat compute_group_bounds_drain_at_node_PE(
     /* Create a tile. */
     group->pe_tile = autosa_array_tile_create(ctx, group->array->n_index);
     /* Map the domain to the outer scheduling dimensions. */
-    acc = local_access_io_at_node(kernel, group, access, node);
+    auto acc = local_access_io_at_node(kernel, group, access, node);
     /* Collect the shift and scale factors of the tile. */
     ok = can_tile(acc, group->pe_tile);
     if (ok < 0)
@@ -2430,7 +2418,6 @@ static isl_stat compute_drain_tiling_at_PE(struct autosa_kernel *kernel,
                                            struct autosa_array_ref_group *group)
 {
   isl_schedule_node *node;
-  struct autosa_array_tile *tile;
 
   node = isl_schedule_get_root(kernel->schedule);
   node = autosa_tree_move_down_to_pe(node, kernel->core);
@@ -2549,7 +2536,6 @@ static isl_stat compute_io_tiling_at_PE(struct autosa_kernel *kernel,
                                         struct autosa_array_ref_group *group)
 {
   isl_schedule_node *node;
-  struct autosa_array_tile *tile;
 
   node = isl_schedule_get_root(kernel->schedule);
   node = autosa_tree_move_down_to_pe(node, kernel->core);
@@ -2570,7 +2556,6 @@ static __isl_give isl_schedule_node *insert_io_module_ids(
 {
   int n_io_ids;
   isl_id_list *io_ids;
-  isl_set *context;
   isl_union_set *filter = NULL;
 
   n_io_ids = space_dim - io_level + 1;
@@ -2998,60 +2983,6 @@ static isl_stat compute_io_group_data_pack(struct autosa_kernel *kernel,
   isl_union_map_free(sizes);
   free(data_pack_ubs);
 
-  return isl_stat_ok;
-}
-
-/* Lift up the L1 I/O buffer between the paralle loops and non-parallel loops
- * in the array loop band.
- * If there is no array loop band. Lift up the L1 I/O buffer above the array mark.
- */
-static isl_stat hoist_L1_io_buffer_local_reduce(
-  struct autosa_kernel *kernel,
-  struct autosa_array_ref_group *group,
-  struct autosa_gen *gen,
-  struct autosa_group_data *data)
-{
-  struct autosa_io_buffer *cur_buffer;
-  isl_schedule_node *node, *node_cp;
-  int n;
-
-  /* Find the L1 buffer. */
-  for (int i = 1; i <= group->io_level; i++) 
-  {
-    cur_buffer = group->io_buffers[i - 1];
-    if (cur_buffer->tile)
-      break;
-  }
-
-  autosa_array_tile_free(cur_buffer->tile);
-  node = isl_schedule_get_root(group->io_schedule);
-  node = autosa_tree_move_down_to_io_mark(node, kernel->core, cur_buffer->level);
-  node = insert_io_module_ids(gen, kernel, node, group->space_dim, cur_buffer->level);
-  node = autosa_tree_move_up_to_array(node);
-
-  if (kernel->array_part_w > 0) {
-    int pos = 0;
-    node = isl_schedule_node_parent(node);
-    n = isl_schedule_node_band_n_member(node);
-    for (pos = n - 1; pos >= 0; pos--)
-    {
-      if (isl_schedule_node_band_member_get_coincident(node, pos))
-        break;
-    }
-    if (pos == n - 1) {
-      node = isl_schedule_node_child(node, 0);
-    } else {
-      node = isl_schedule_node_band_split(node, pos + 1);
-      node = isl_schedule_node_child(node, 0);      
-    }
-  } 
-  
-  if (group->group_type == AUTOSA_DRAIN_GROUP)
-    compute_group_bounds_drain_at_node(kernel, group, node, cur_buffer);
-  else if (group->group_type == AUTOSA_IO_GROUP)
-    compute_group_bounds_io_at_node(kernel, group, node, cur_buffer);
-  autosa_array_ref_group_compute_tiling(cur_buffer->tile, group);
-  
   return isl_stat_ok;
 }
 
@@ -3587,130 +3518,6 @@ static isl_stat hoist_L2_io_buffer(
   return isl_stat_ok;
 }
 
-/* Return the prefix I/O schedule at io_level "level". */
-static __isl_give isl_union_map *get_io_schedule_at_level(
-    __isl_keep isl_schedule *sched, int level)
-{
-  isl_schedule_node *node;
-  struct autosa_kernel *kernel;
-  isl_id *id;
-  isl_union_map *io_sched;
-
-  node = isl_schedule_get_root(sched);
-  node = autosa_tree_move_down_to_kernel(node);
-  id = isl_schedule_node_mark_get_id(node);
-  kernel = (struct autosa_kernel *)isl_id_get_user(id);
-  isl_id_free(id);
-  node = autosa_tree_move_down_to_io_mark(node, kernel->core, level);
-  io_sched = prefix_with_equalities(node);
-  io_sched = expand(io_sched, kernel->contraction);
-  isl_schedule_node_free(node);
-
-  return io_sched;
-}
-
-/* Map the domain of "access" to the outer data->local_depth
- * schedule dimensions.   
- */
-static __isl_give isl_map *local_access_io(struct autosa_array_ref_group *group,
-                                           __isl_keep isl_union_map *access, struct autosa_group_data *data)
-{
-  isl_union_map *local;
-  local = isl_union_map_copy(access);
-
-  if (group->io_type == AUTOSA_EXT_IO)
-  {
-    /* Group at the IO_L2 level */
-    isl_union_map *new_sched = get_io_schedule_at_level(group->io_schedule, 2);
-    local = isl_union_map_apply_domain(local,
-                                       new_sched);
-  }
-  else if (group->io_type == AUTOSA_INT_IO)
-  {
-    /* Group at the IO_L1 level. */
-    isl_union_map *new_sched = get_io_schedule_at_level(group->io_schedule, 1);
-    local = isl_union_map_apply_domain(local,
-                                       new_sched);
-  }
-  return isl_map_from_union_map(local);
-}
-
-/* Compute the local memory tiles for the array reference group "group"
- * of array "array". Return isl_stat_ok on success and isl_stat_error on error.
- *
- * If the array is a read-only scalar or if the user requested not to use 
- * local emory, then we do not need to do anything.
- *
- * For interior I/O group, the tiling is computed at the io_L1 level.
- * For exteriro I/O group, the tiling is computed at the io_L2 level.
- */
-static isl_stat compute_group_bounds_core_io(struct autosa_kernel *kernel,
-                                             struct autosa_array_ref_group *group,
-                                             struct autosa_group_data *data)
-{
-  isl_ctx *ctx = isl_space_get_ctx(group->array->space);
-  int use_local = kernel->options->autosa->use_local_memory;
-  isl_stat r = isl_stat_ok;
-  isl_union_map *access;
-  isl_map *acc;
-  isl_bool ok;
-
-  if (!use_local)
-    return isl_stat_ok;
-  if (autosa_array_is_read_only_scalar(group->array))
-    return isl_stat_ok;
-  if (!group->exact_write)
-    return isl_stat_ok;
-  if (group->slice)
-    return isl_stat_ok;
-
-  /* Collect all accesses in the group. 
-   * TODO: Overapproximation */
-  access = autosa_array_ref_group_access_relation(group, 1, 1);
-  /* Create local tile */
-  if (use_local)
-  {
-    /* Create a tile. */
-    group->local_tile = autosa_array_tile_create(ctx,
-                                                 group->array->n_index);
-    /* Map the domain to the outer scheduling dimensions. */
-    acc = local_access_io(group, access, data);
-    /* Collect the shift and scale factors of the tile. */
-    ok = can_tile(acc, group->local_tile);
-    if (ok < 0)
-      r = isl_stat_error;
-    else if (!ok)
-      group->local_tile =
-          autosa_array_tile_free(group->local_tile);
-    isl_map_free(acc);
-  }
-
-  if (r < 0)
-  {
-    isl_union_map_free(access);
-    return r;
-  }
-
-  isl_union_map_free(access);
-  return isl_stat_ok;
-}
-
-/* Compute the local memory tiles for the array
- * reference group "group" of array "array" and set the tile depth.
- * Return 0 on success and -1 on error.
- */
-static int compute_group_bounds_io(struct autosa_kernel *kernel,
-                                   struct autosa_array_ref_group *group,
-                                   struct autosa_group_data *data)
-{
-  if (!group)
-    return -1;
-  if (compute_group_bounds_core_io(kernel, group, data) < 0)
-    return -1;
-
-  return 0;
-}
-
 /* Set array->n_group and array->groups to n and groups.
  *
  * Additionally, set the "nr" field of each group.
@@ -3851,76 +3658,6 @@ static isl_bool extract_access_waw_domain_wrap(__isl_keep isl_map *map, void *us
   }
   isl_basic_map_list_free(bmap_list);
   return isl_bool_true;
-}
-
-/* Compute the local memory tiles for the array reference group "group"
- * of array "array". Return isl_stat_ok on success and isl_stat_error on error.
- *
- * The tiling is computed at the PE level.
- */
-static isl_stat compute_group_bounds_core_drain(struct autosa_kernel *kernel,
-                                                struct autosa_array_ref_group *group, struct autosa_group_data *data)
-{
-  isl_ctx *ctx = isl_space_get_ctx(group->array->space);
-  int use_local = kernel->options->autosa->use_local_memory;
-  isl_stat r = isl_stat_ok;
-  isl_union_map *access;
-  isl_map *acc;
-  isl_bool ok;
-
-  if (!use_local)
-    return isl_stat_ok;
-  if (autosa_array_is_read_only_scalar(group->array))
-    return isl_stat_ok;
-  if (!group->exact_write)
-    return isl_stat_ok;
-  if (group->slice)
-    return isl_stat_ok;
-
-  /* Collect all accesses in the group. */
-  /* This is overapproximated. */
-  access = autosa_array_ref_group_access_relation(group, 0, 1);
-  /* Create local tile */
-  if (use_local)
-  {
-    /* Create a tile. */
-    group->local_tile = autosa_array_tile_create(ctx,
-                                                 group->array->n_index);
-    /* Map the domain to the outer scheduling dimensions */
-    acc = local_access_io(group, access, data);
-    /* Collect the shift and scale factors of the tile. */
-    ok = can_tile(acc, group->local_tile);
-    if (ok < 0)
-      r = isl_stat_error;
-    else if (!ok)
-      group->local_tile =
-          autosa_array_tile_free(group->local_tile);
-    isl_map_free(acc);
-  }
-
-  if (r < 0)
-  {
-    isl_union_map_free(access);
-    return r;
-  }
-
-  isl_union_map_free(access);
-  return isl_stat_ok;
-}
-
-/* Compute the local memory tiles for the array
- * reference group "group" of array "array" and set the tile depth.
- * Return 0 on success and -1 on error.
- */
-static int compute_group_bounds_drain(struct autosa_kernel *kernel,
-                                      struct autosa_array_ref_group *group, struct autosa_group_data *data)
-{
-  if (!group)
-    return -1;
-  if (compute_group_bounds_core_drain(kernel, group, data) < 0)
-    return -1;
-
-  return 0;
 }
 
 /* Group array references together if they are associated with WAW dep and need 
@@ -4082,9 +3819,7 @@ static void compute_group_tilings_io(struct autosa_kernel *kernel)
  */
 static void compute_group_tilings_drain(struct autosa_kernel *kernel)
 {
-  int i, j;
-
-  for (i = 0; i < kernel->n_array; ++i)
+  for (int i = 0; i < kernel->n_array; ++i)
   {
     struct autosa_local_array_info *array = &kernel->array[i];
     if (!array->drain_group)
@@ -4417,7 +4152,6 @@ __isl_give isl_union_map *autosa_io_group_ref_access_relation(
     int read, int write)
 {
   isl_union_map *access;
-  isl_map *map;
 
   access = isl_union_map_empty(isl_map_get_space(ref->access));
   for (int i = 0; i < ref->n_io_info; i++)
@@ -4957,7 +4691,7 @@ __isl_give isl_union_map *io_comm_access_ref(
   }
 
   if (group->local_array->array_type == AUTOSA_INT_ARRAY)
-    access = remove_local_accesses_group_flow(kernel, group, access, prefix, read);
+    access = remove_local_accesses_group_flow(kernel, group, NULL, prefix, read);
 
   if (group->group_type == AUTOSA_IO_GROUP && group->attached_drain_group && !read) {
     // TODO: temporary solution. We assume the io group and attached drain group
@@ -5032,7 +4766,6 @@ struct autosa_array_tile *create_register_tiling(
   isl_map *access_i;
   isl_ctx *ctx;
   isl_union_map *sched;
-  isl_bool ok;
   struct autosa_array_tile *tile;
   isl_union_set *domain;
 
@@ -5044,7 +4777,7 @@ struct autosa_array_tile *create_register_tiling(
   sched = isl_union_map_intersect_domain(sched, domain);
   access = isl_union_map_apply_domain(access, sched);
   access_i = isl_map_from_union_map(access);
-  ok = can_tile(access_i, tile);
+  can_tile(access_i, tile);
   isl_map_free(access_i);
   autosa_array_ref_group_compute_tiling(tile, group);
 
@@ -5216,13 +4949,13 @@ int get_io_group_n_lane(struct autosa_hw_module *module,
                         struct autosa_pe_dummy_module *dummy_module,
                         struct autosa_array_ref_group *group)
 {
-  int n_lane;
+  int n_lane = 0;
 
   if (module && module->type == PE_MODULE || dummy_module)
   {
     n_lane = (group->local_array->array_type == AUTOSA_EXT_ARRAY) ? group->n_lane : ((group->group_type == AUTOSA_DRAIN_GROUP) ? group->n_lane : ((group->io_type == AUTOSA_EXT_IO) ? group->n_lane : group->io_buffers[0]->n_lane));
   }
-  else
+  else if (module)
   {
     n_lane = module->data_pack_inter;
   }
@@ -5256,14 +4989,12 @@ static __isl_give isl_multi_aff *strided_tile_depth(
     __isl_keep isl_multi_aff *insert_array, int depth)
 {
   int i;
-  isl_ctx *ctx;
   isl_multi_aff *shift;
   isl_multi_val *stride;
   isl_space *space2;
   isl_local_space *ls;
   isl_multi_aff *tiling;
 
-  ctx = isl_space_get_ctx(space);
   space2 = isl_space_domain(isl_space_copy(space));
   ls = isl_local_space_from_space(space2);
   space2 = isl_space_range(isl_space_copy(space));

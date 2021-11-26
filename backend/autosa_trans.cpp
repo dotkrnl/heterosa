@@ -1626,29 +1626,6 @@ static isl_schedule_node *detect_latency_hiding_loop(__isl_take isl_schedule_nod
     return node;
 }
 
-/* Examine if the node is the last band node.
- * If so, add a "latency" mark before the node. 
- */
-static __isl_give isl_schedule_node *add_latency_mark(
-    __isl_take isl_schedule_node *node, void *user)
-{
-    if (isl_schedule_node_get_type(node) == isl_schedule_node_band)
-    {
-        node = isl_schedule_node_child(node, 0);
-        isl_bool no_inner_band = isl_schedule_node_every_descendant(node,
-                                                                    &no_permutable_node, NULL);
-        node = isl_schedule_node_parent(node);
-        if (no_inner_band)
-        {
-            /* Insert the "latency" mark. */
-            isl_id *id = isl_id_alloc(isl_schedule_node_get_ctx(node), "latency", NULL);
-            node = isl_schedule_node_insert_mark(node, id);
-        }
-    }
-
-    return node;
-}
-
 /* Sink the current node (latency hiding loop) as the last time loop. 
  * If the array is async, then sink the node to the bottom.
  * If the array is sync, then lift it up and insert it as the last loop 
@@ -2454,28 +2431,6 @@ static isl_schedule_node *detect_simd_vectorization_loop(
                     }
                 }
             }
-        }
-    }
-
-    return node;
-}
-
-/* Examine if the node is the last band node, 
- * If so, add a "simd" mark before the node. */
-static __isl_give isl_schedule_node *add_simd_mark(
-    __isl_take isl_schedule_node *node, void *user)
-{
-    if (isl_schedule_node_get_type(node) == isl_schedule_node_band)
-    {
-        node = isl_schedule_node_child(node, 0);
-        isl_bool no_inner_band = isl_schedule_node_every_descendant(node,
-                                                                    &no_permutable_node, NULL);
-        node = isl_schedule_node_parent(node);
-        if (no_inner_band)
-        {
-            /* Insert the "simd" mark. */
-            isl_id *id = isl_id_alloc(isl_schedule_node_get_ctx(node), "simd", NULL);
-            node = isl_schedule_node_insert_mark(node, id);
         }
     }
 

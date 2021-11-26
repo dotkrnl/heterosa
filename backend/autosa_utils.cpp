@@ -153,89 +153,6 @@ __isl_give isl_union_set *isl_union_pw_aff_nonneg_union_set(
   return nonneg;
 }
 
-/* Return a union set containing those elements in the domains
- * of the elements of "mupa" where they are all non zero.
- *
- * If there are no elements, then simply return the entire domain.
- */
-__isl_give isl_union_set *isl_multi_union_pw_aff_non_zero_union_set(
-    __isl_take isl_multi_union_pw_aff *mupa)
-{
-  int i;
-  isl_size n;
-  isl_union_pw_aff *upa;
-  isl_union_set *non_zero;
-
-  n = isl_multi_union_pw_aff_dim(mupa, isl_dim_set);
-  if (n < 0)
-    mupa = isl_multi_union_pw_aff_free(mupa);
-  if (!mupa)
-    return NULL;
-
-  if (n == 0)
-    return isl_multi_union_pw_aff_domain(mupa);
-
-  upa = isl_multi_union_pw_aff_get_union_pw_aff(mupa, 0);
-  non_zero = isl_union_pw_aff_non_zero_union_set(upa);
-
-  for (i = 1; i < n; ++i)
-  {
-    isl_union_set *non_zero_i;
-
-    upa = isl_multi_union_pw_aff_get_union_pw_aff(mupa, i);
-    non_zero_i = isl_union_pw_aff_nonneg_union_set(upa);
-
-    non_zero = isl_union_set_intersect(non_zero, non_zero_i);
-  }
-
-  isl_multi_union_pw_aff_free(mupa);
-  return non_zero;
-}
-
-/* Compute the set of elements in the domain of "pa" where it is non zero
- * and add this set to "uset".
- */
-static isl_stat non_zero_union_set(__isl_take isl_pw_aff *pa, void *user)
-{
-  isl_union_set **uset = (isl_union_set **)user;
-  *uset = isl_union_set_add_set(*uset, isl_pw_aff_non_zero_set(pa));
-
-  return *uset ? isl_stat_ok : isl_stat_error;
-}
-
-/* Return a union_set containing those elements in the domains
- * of "upa" where it is non zero.
- */
-__isl_give isl_union_set *isl_union_pw_aff_non_zero_union_set(
-    __isl_take isl_union_pw_aff *upa)
-{
-  isl_union_set *non_zero;
-
-  non_zero = isl_union_set_empty(isl_union_pw_aff_get_space(upa));
-  if (isl_union_pw_aff_foreach_pw_aff(upa, &non_zero_union_set, &non_zero) < 0)
-    non_zero = isl_union_set_free(non_zero);
-
-  isl_union_pw_aff_free(upa);
-  return non_zero;
-}
-
-/* Print the isl_mat "mat" to "fp".
- */
-void print_mat(FILE *fp, __isl_keep isl_mat *mat)
-{
-  isl_printer *printer = isl_printer_to_file(isl_mat_get_ctx(mat), fp);
-  for (int i = 0; i < isl_mat_rows(mat); i++)
-  {
-    for (int j = 0; j < isl_mat_cols(mat); j++)
-    {
-      isl_printer_print_val(printer, isl_mat_get_element_val(mat, i, j));
-      fprintf(fp, " ");
-    }
-    fprintf(fp, "\n");
-  }
-  isl_printer_free(printer);
-}
-
 /* Compare the two vectors, return 0 if equal.
  */
 int isl_vec_cmp(__isl_keep isl_vec *vec1, __isl_keep isl_vec *vec2)
@@ -395,29 +312,6 @@ long isl_val_get_num(__isl_take isl_val *val)
   isl_val_free(val);
 
   return ret;
-}
-
-static isl_stat find_pa_min(__isl_take isl_set *set, __isl_take isl_aff *aff, void *user)
-{
-  long *min = (long *)user;
-  if (isl_aff_is_cst(aff)) {
-    *min = std::min(*min, isl_val_get_num(isl_aff_get_constant_val(aff)));
-  } else {
-    *min = std::numeric_limits<long>::min();
-  }
-  isl_set_free(set);
-  isl_aff_free(aff);
-  return isl_stat_ok;
-}
-
-long compute_set_min(__isl_keep isl_set *set, int dim)
-{
-  long min = std::numeric_limits<long>::max();
-  isl_pw_aff *pa = isl_set_dim_min(isl_set_copy(set), dim);
-  isl_pw_aff_foreach_piece(pa, &find_pa_min, &min);
-  isl_pw_aff_free(pa);
-
-  return min;  
 }
 
 static isl_stat find_pa_max(__isl_take isl_set *set, __isl_take isl_aff *aff, void *user)

@@ -175,60 +175,6 @@ struct autosa_kernel *autosa_kernel_from_schedule(__isl_take isl_schedule *sched
   return kernel;
 }
 
-struct autosa_kernel *autosa_kernel_alloc(isl_ctx *ctx, struct ppcg_scop *scop)
-{
-  struct autosa_kernel *kernel;
-  isl_space *space;
-  isl_map *id;
-
-  if (!scop)
-    return NULL;
-
-  kernel = isl_calloc_type(ctx, struct autosa_kernel);
-  if (!kernel)
-    return NULL;
-
-  kernel->ctx = ctx;
-  kernel->scop = scop;
-  kernel->prog = NULL;
-  kernel->options = NULL;
-  kernel->n_sa_dim = 0;
-  kernel->array_part_w = 0;
-  kernel->space_w = 0;
-  kernel->time_w = 0;
-  kernel->type = 0;
-  kernel->sa_grid_size = NULL;
-  kernel->sizes = NULL;
-  kernel->used_sizes = NULL;
-  kernel->id = 0;
-  kernel->core = NULL;
-  kernel->arrays = NULL;
-  kernel->n_array = 0;
-  kernel->array = NULL;
-  kernel->copy_schedule = NULL;
-  kernel->copy_schedule_dim = -1;
-  kernel->space = NULL;
-  kernel->tree = NULL;
-  kernel->n_var = 0;
-  kernel->var = NULL;
-  kernel->block_ids = NULL;
-  kernel->thread_ids = NULL;
-  kernel->pe_ids = NULL;
-  kernel->pe_filter = NULL;
-  kernel->n_grid = 0;
-  kernel->n_block = 0;
-  kernel->grid_size = NULL;
-  kernel->grid_size_expr = NULL;
-  kernel->context = NULL;
-  kernel->contraction = NULL;
-  kernel->expanded_domain = NULL;
-  kernel->host_domain = NULL;
-  kernel->domain = NULL;
-  kernel->single_statement = 0;  
-
-  return kernel;
-}
-
 /****************************************************************
  * AutoSA access
  ****************************************************************/
@@ -383,20 +329,6 @@ isl_bool access_is_stride_one(__isl_keep isl_map *access, int pos)
   return coalesced;
 }
 
-void *autosa_acc_free(struct autosa_acc *acc)
-{
-  if (!acc)
-    return NULL;
-
-  isl_map_free(acc->tagged_map);
-  isl_map_free(acc->map);
-  isl_space_free(acc->id);
-
-  free(acc);
-
-  return NULL;
-}
-
 /****************************************************************
  * AutoSA dep
  ****************************************************************/
@@ -420,25 +352,6 @@ void *autosa_dep_free(__isl_take struct autosa_dep *dep)
     isl_basic_map_free(dep->isl_dep);
 
   free(dep);
-
-  return NULL;
-}
-
-/****************************************************************
- * AutoSA iterator
- ****************************************************************/
-
-__isl_null struct autosa_iter *autosa_iter_free(struct autosa_iter *iter)
-{
-  if (!iter)
-    return NULL;
-
-  free(iter->name);
-  free(iter->ts_name);
-  isl_aff_free(iter->lb);
-  isl_aff_free(iter->ub);
-
-  free(iter);
 
   return NULL;
 }
@@ -898,46 +811,6 @@ struct autosa_array_ref_group *autosa_array_ref_group_free(
   return NULL;
 }
 
-struct autosa_array_ref_group *autosa_array_ref_group_init(
-    struct autosa_array_ref_group *group)
-{
-  group->local_array = NULL;
-  group->array = NULL;
-  group->nr = -1;
-  group->access = NULL;
-  group->write = -1;
-  group->exact_write = -1;
-  group->slice = -1;
-  group->min_depth = -1;
-  group->shared_tile = NULL;
-  group->private_tile = NULL;
-  group->local_tile = NULL;
-  group->n_ref = 0;
-  group->refs = NULL;
-  group->io_buffers = NULL;
-  group->n_io_buffer = 0;
-  group->io_type = AUTOSA_UNKNOWN_IO;
-  group->pe_io_dir = IO_UNKNOWN;
-  group->array_io_dir = IO_UNKNOWN;
-  group->io_trans = NULL;
-  group->io_L1_trans = NULL;
-  group->io_pe_expr = NULL;
-  group->io_L1_pe_expr = NULL;
-  group->io_pe_expr_boundary = NULL;
-  group->io_L1_pe_expr_boundary = NULL;
-  group->io_schedule = NULL;
-  group->io_L1_schedule = NULL;
-  group->io_L1_lower_schedule = NULL;
-  group->io_level = 0;
-  group->space_dim = 0;
-  group->n_lane = 0;
-  group->copy_schedule_dim = 0;
-  group->copy_schedule = NULL;
-  group->attached_drain_group = NULL;
-
-  return group;
-}
-
 struct autosa_array_tile *autosa_array_tile_free(struct autosa_array_tile *tile)
 {
   int j;
@@ -986,25 +859,6 @@ struct autosa_array_tile *autosa_array_tile_create(isl_ctx *ctx, int n_index)
   }
 
   return tile;
-}
-
-/* Compute the size of the tile specified by "tile"
- * in number of elements and return the result.
- */
-__isl_give isl_val *autosa_array_tile_size(struct autosa_array_tile *tile)
-{
-  int i;
-  isl_val *size;
-
-  if (!tile)
-    return NULL;
-
-  size = isl_val_one(tile->ctx);
-
-  for (i = 0; i < tile->n; ++i)
-    size = isl_val_mul(size, isl_val_copy(tile->bound[i].size));
-
-  return size;
 }
 
 /****************************************************************
@@ -2152,20 +2006,6 @@ error:
   return NULL;
 }
 
-int *read_default_simd_tile_sizes(struct autosa_kernel *sa, int tile_len)
-{
-  int n;
-  int *tile_size;
-
-  tile_size = isl_alloc_array(sa->ctx, int, tile_len);
-  if (!tile_size)
-    return NULL;
-  for (n = 0; n < tile_len; ++n)
-    tile_size[n] = sa->scop->options->autosa->sa_tile_size / 2;
-
-  return tile_size;
-}
-
 int read_space_time_kernel_id(__isl_keep isl_union_map *sizes)
 {
   isl_set *size;
@@ -2209,20 +2049,6 @@ int *read_array_part_L2_tile_sizes(struct autosa_kernel *sa, int tile_len)
 error:
   free(tile_size);
   return NULL;
-}
-
-int *read_default_array_part_L2_tile_sizes(struct autosa_kernel *sa, int tile_len)
-{
-  int n;
-  int *tile_size;
-
-  tile_size = isl_alloc_array(sa->ctx, int, tile_len);
-  if (!tile_size)
-    return NULL;
-  for (n = 0; n < tile_len; ++n)
-    tile_size[n] = sa->scop->options->autosa->sa_tile_size;
-
-  return tile_size;
 }
 
 /****************************************************************
