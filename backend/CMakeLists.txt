@@ -163,9 +163,9 @@ target_sources(
     autosa_common.cpp
     autosa_print.cpp
     autosa_schedule_tree.cpp
+    autosa_target.cpp
     autosa_trans.cpp
     autosa_utils.cpp
-    autosa_xilinx_hls_c.cpp
 )
 target_include_directories(
     heterosa_cc

@@ -51,15 +51,16 @@ __isl_give isl_printer *print_kernel_header(__isl_take isl_printer *p,
 
 /* HW modules */
 void print_module_iterators(FILE *out, struct autosa_hw_module *module);
-__isl_give isl_printer *print_module_arguments(
-    __isl_take isl_printer *p, struct autosa_prog *prog,
-    struct autosa_kernel *kernel, struct autosa_hw_module *module, int types,
-    enum platform target, int inter, int arb, int boundary, int serialize);
+__isl_give isl_printer *print_module_arguments(__isl_take isl_printer *p,
+                                               struct autosa_prog *prog,
+                                               struct autosa_kernel *kernel,
+                                               struct autosa_hw_module *module,
+                                               int types, int inter, int arb,
+                                               int boundary, int serialize);
 __isl_give isl_printer *print_pe_dummy_module_arguments(
     __isl_take isl_printer *p, struct autosa_prog *prog,
     struct autosa_kernel *kernel,
-    struct autosa_pe_dummy_module *pe_dummy_module, int types,
-    enum platform target);
+    struct autosa_pe_dummy_module *pe_dummy_module, int types);
 void print_top_gen_headers(struct autosa_prog *prog,
                            struct autosa_hw_top_module *top,
                            struct hls_info *hls);
@@ -69,7 +70,7 @@ __isl_give isl_printer *print_top_gen_arguments(__isl_take isl_printer *p,
                                                 int types);
 __isl_give isl_printer *autosa_kernel_print_module_call(
     __isl_take isl_printer *p, struct autosa_kernel_stmt *stmt,
-    struct autosa_prog *prog, enum platform target);
+    struct autosa_prog *prog);
 void print_func_iterators(FILE *out, struct autosa_drain_merge_func *func);
 __isl_give isl_printer *print_host_serialize_arguments(
     __isl_take isl_printer *p, struct autosa_kernel *kernel,
@@ -79,10 +80,10 @@ __isl_give isl_printer *print_host_serialize_arguments(
 /* FIFOs */
 __isl_give isl_printer *autosa_fifo_print_declaration_arguments(
     __isl_take isl_printer *p, struct autosa_array_ref_group *group, int n_lane,
-    const char *suffix, enum platform target);
+    const char *suffix);
 __isl_give isl_printer *autosa_fifo_print_call_argument(
     __isl_take isl_printer *p, struct autosa_array_ref_group *group,
-    const char *suffix, enum platform target);
+    const char *suffix);
 __isl_give isl_printer *autosa_kernel_print_fifo_decl(
     __isl_take isl_printer *p, struct autosa_kernel_stmt *stmt,
     struct autosa_prog *prog, struct hls_info *hls);
@@ -121,18 +122,10 @@ __isl_give isl_printer *autosa_kernel_print_host_serialize(
     __isl_take isl_printer *p, struct autosa_kernel_stmt *stmt,
     struct hls_info *hls);
 
-/* Xilinx-specific */
-__isl_give isl_printer *print_fifo_type_xilinx(
-    __isl_take isl_printer *p, struct autosa_array_ref_group *group,
-    int n_lane);
-__isl_give isl_printer *print_fifo_rw_xilinx(__isl_take isl_printer *p,
-                                             const char *fifo_name, int read);
-
-/* Intel-specific */
-__isl_give isl_printer *print_fifo_type_intel(
-    __isl_take isl_printer *p, struct autosa_array_ref_group *group,
-    int n_lane);
-__isl_give isl_printer *print_fifo_rw_intel(__isl_take isl_printer *p,
-                                            const char *fifo_name, int read);
+__isl_give isl_printer *print_fifo_type(__isl_take isl_printer *p,
+                                        struct autosa_array_ref_group *group,
+                                        int n_lane);
+__isl_give isl_printer *print_fifo_rw(__isl_take isl_printer *p,
+                                      const char *fifo_name, int read);
 
 #endif

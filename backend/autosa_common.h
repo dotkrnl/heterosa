@@ -88,8 +88,6 @@ enum autosa_group_type {
 
 enum autosa_array_type { AUTOSA_EXT_ARRAY, AUTOSA_INT_ARRAY };
 
-enum platform { INTEL_HW, XILINX_HW };
-
 struct autosa_dep {
   isl_id *src;
   isl_id *dest;
@@ -627,13 +625,6 @@ struct autosa_hw_top_module {
   int n_hw_modules;
   struct autosa_hw_module **hw_modules;
   struct autosa_kernel *kernel;
-
-  /* For Intel devices */
-  int n_ext_module;
-  isl_schedule **ext_module_scheds;
-  isl_ast_node **ext_module_trees;
-  int n_ext_module_wrapped;
-  isl_ast_node **ext_module_wrapped_trees;
 };
 
 struct autosa_pe_dummy_module {
@@ -980,7 +971,6 @@ struct hls_info {
                             hardware modules. */
   FILE *top_gen_h;
 
-  enum platform target;
   int hls;          /* Generate HLS host instead of OpenCL host */
   char *output_dir; /* Output directory */
   isl_ctx *ctx;

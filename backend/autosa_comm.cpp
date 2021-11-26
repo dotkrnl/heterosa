@@ -4088,8 +4088,8 @@ __isl_give isl_union_map *io_comm_access_ref(
     struct autosa_kernel *kernel, __isl_keep isl_schedule_node *node,
     struct autosa_array_ref_group *group, struct autosa_stmt_access *ref,
     int read) {
-  isl_union_map *prefix;
-  isl_union_map *access;
+  isl_union_map *prefix = NULL;
+  isl_union_map *access = NULL;
 
   prefix = isl_schedule_node_get_prefix_schedule_relation(node);
   prefix = isl_union_map_preimage_domain_union_pw_multi_aff(
@@ -4103,7 +4103,7 @@ __isl_give isl_union_map *io_comm_access_ref(
 
   if (group->local_array->array_type == AUTOSA_INT_ARRAY)
     access =
-        remove_local_accesses_group_flow(kernel, group, NULL, prefix, read);
+        remove_local_accesses_group_flow(kernel, group, access, prefix, read);
 
   if (group->group_type == AUTOSA_IO_GROUP && group->attached_drain_group &&
       !read) {

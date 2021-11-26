@@ -35,7 +35,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "autosa_xilinx_hls_c.h"
+#include "autosa_target.h"
 #include "ppcg_options.h"
 
 struct options {
@@ -1057,10 +1057,8 @@ static void compute_dependences(struct ppcg_scop *scop) {
 
   if (scop->options->live_range_reordering)
     compute_live_range_reordering_dependences(scop);
-  else if (scop->options->target != PPCG_TARGET_C)
-    compute_tagged_flow_dep(scop);
   else
-    compute_flow_dep(scop);
+    compute_tagged_flow_dep(scop);
 
   may_source = isl_union_map_union(isl_union_map_copy(scop->may_writes),
                                    isl_union_map_copy(scop->reads));
@@ -1366,19 +1364,18 @@ int autosa_main_wrap(int argc, char **argv) {
   assert(options);
 
   ctx = isl_ctx_alloc_with_options(&options_args, options);
-  ppcg_options_set_target_defaults(options->ppcg);
   isl_options_set_ast_build_detect_min_max(ctx, 1);
   isl_options_set_ast_print_macro_once(ctx, 1);
   isl_options_set_schedule_whole_component(ctx, 0);
   isl_options_set_schedule_maximize_band_depth(ctx, 1);
   isl_options_set_schedule_maximize_coincidence(ctx, 1);
   pet_options_set_encapsulate_dynamic_control(ctx, 1);
-  argc = options_parse(options, argc, argv, ISL_ARG_ALL);
+  options_parse(options, argc, argv, ISL_ARG_ALL);
 
   if (check_options(ctx) < 0)
     r = EXIT_FAILURE;
-  else if (options->ppcg->target == AUTOSA_TARGET_XILINX_HLS_C)
-    r = generate_autosa_xilinx_hls_c(ctx, options->ppcg, options->input);
+  else
+    r = generate_autosa_target(ctx, options->ppcg, options->input);
 
   isl_ctx_free(ctx);
 

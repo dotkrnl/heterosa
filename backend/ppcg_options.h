@@ -64,8 +64,6 @@ struct autosa_options {
   int insert_hls_dependence;
   /* Embed I/O modules inside PEs. */
   int io_module_embedding;
-  /* Enable loop infinitization optimization. Only for Intel. */
-  int loop_infinitize;
   /* Enable data serialization/deserialization on the host side. */
   int host_serialize;
   /* Use non-blocking FIFO access. Note: Not supported. */
@@ -168,18 +166,8 @@ ISL_ARG_DECL(ppcg_debug_options, struct ppcg_debug_options,
              ppcg_debug_options_args)
 ISL_ARG_DECL(ppcg_options, struct ppcg_options, ppcg_options_args)
 
-#define PPCG_TARGET_C 0
-#define PPCG_TARGET_CUDA 1
-#define PPCG_TARGET_OPENCL 2
-#define AUTOSA_TARGET_XILINX_HLS_C 3
-#define AUTOSA_TARGET_INTEL_OPENCL 4
-#define AUTOSA_TARGET_T2S 5
-#define AUTOSA_TARGET_C 6
-
 #define AUTOSA_SA_TYPE_SYNC 0
 #define AUTOSA_SA_TYPE_ASYNC 1
-
-void ppcg_options_set_target_defaults(struct ppcg_options *options);
 
 #ifdef __cplusplus
 }

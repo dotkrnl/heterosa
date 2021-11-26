@@ -692,8 +692,7 @@ __isl_give isl_schedule_node *add_io_copies_stmt_acc(
 }
 
 /* Insert the copy statement at the node level to transfer the entire tie.
- * If "is_buffer" is set, add a marker for dependence false. This is
- * only for Xilinx platform.
+ * If "is_buffer" is set, add a marker for dependence false.
  */
 static __isl_give isl_schedule_node *add_io_copies_stmt_tile(
     struct autosa_kernel *kernel, struct autosa_array_ref_group *group,
@@ -701,7 +700,6 @@ static __isl_give isl_schedule_node *add_io_copies_stmt_tile(
     struct autosa_array_tile *local_tile, /* Local buffer */
     struct autosa_array_tile *tile,       /* The tile to be copied */
     int n_lane, int read, __isl_take char *stmt_name, int before, int is_buffer,
-    /* If it is proper to insert hls_pipeline for Xilinx platforms. */
     int insert_dependence,
     /* If needs to insert a access_serialize mark. */
     int insert_serialize) {
@@ -3993,7 +3991,6 @@ static __isl_give struct autosa_hw_module *sa_pe_module_gen(
  * PE module
  * I/O module (copy-out)
  * Drain module
- * The reason for the re-ordering is for CSim to proceed in Xilinx environment.
  */
 static __isl_give struct autosa_hw_module **hw_module_reorder(
     __isl_take struct autosa_hw_module **modules, int n_module) {
@@ -4659,180 +4656,6 @@ static __isl_give isl_schedule_node *io_gen_module_call(
   return node;
 }
 
-/* The input "node" points to the node below io_[module->level] mark.
- * Return the node points to the "kernel" mark.
- * We will insert one module call extension node:
- * module_call_upper: which contains the module name and arguments for the
- * inter-module transfer
- * This function is used for Intel OpenCL only. We will not generate
- * the module_call_lower, which is define as below:
- * module_call_lower: which contains arguments for the intra-module transfer
- * (i.e., transfer to the lower-level modules)
- */
-static __isl_give isl_schedule_node *io_gen_ext_module(
-    __isl_take isl_schedule_node *node, struct autosa_hw_module *module,
-    struct autosa_kernel *kernel, struct autosa_array_ref_group *group,
-    int boundary) {
-  isl_printer *p_str;
-  char *stmt_name;
-  isl_space *space;
-  isl_union_set *domain, *empty_filter, *lower_level_filter;
-  isl_schedule_node *graft;
-  isl_bool insert_lower = isl_bool_false;
-  isl_ctx *ctx = isl_schedule_node_get_ctx(node);
-  isl_id *id;
-  isl_union_map *prefix, *extension, *umap;
-  isl_union_set *range;
-  isl_set *set;
-  isl_map *map;
-  isl_multi_union_pw_aff *mupa;
-
-  /* Graft an extension node for module call. */
-  prefix = isl_schedule_node_get_prefix_schedule_relation(node);
-  prefix = isl_union_map_preimage_domain_union_pw_multi_aff(
-      prefix, isl_union_pw_multi_aff_copy(kernel->contraction));
-  domain = isl_union_map_range(prefix);
-
-  p_str = isl_printer_to_str(ctx);
-  p_str = isl_printer_print_str(p_str, "ext_module_upper.");
-  p_str = isl_printer_print_str(p_str, module->name);
-  if (boundary) p_str = isl_printer_print_str(p_str, ".boundary");
-  stmt_name = isl_printer_get_str(p_str);
-  isl_printer_free(p_str);
-  space = isl_space_set_alloc(ctx, 0, 0);
-  space = isl_space_set_tuple_name(space, isl_dim_set, stmt_name);
-  free(stmt_name);
-
-  isl_point *pnt = isl_point_zero(space);
-  set = isl_set_from_point(pnt);
-  range = isl_union_set_from_set(isl_set_copy(set));
-
-  extension = isl_union_map_from_domain_and_range(domain, range);
-  graft = isl_schedule_node_from_extension(extension);
-
-  map = isl_set_identity(set);
-  map = isl_map_reset_tuple_id(map, isl_dim_out);
-  umap = isl_union_map_from_map(map);
-  mupa = isl_multi_union_pw_aff_from_union_map(umap);
-
-  graft = isl_schedule_node_child(graft, 0);
-  graft = isl_schedule_node_insert_partial_schedule(graft, mupa);
-
-  while (graft && isl_schedule_node_has_parent(graft))
-    graft = isl_schedule_node_parent(graft);
-
-  node = isl_schedule_node_graft_before(node, graft);
-  node = isl_schedule_node_cut(node);
-
-  /* Insert an empty filter. */
-  empty_filter =
-      isl_union_set_from_set(isl_set_empty(isl_set_get_space(kernel->context)));
-  node = isl_schedule_node_insert_filter(node, empty_filter);
-
-  node = autosa_tree_move_up_to_kernel(node);
-
-  return node;
-}
-
-/* Generate the calls for the io module connected to the external memory.
- * This function is used for Intel OpenCL only.
- * Since all fifos will be replaced with channels later, this function only
- * generates the upper module calls, ignoring the lower module call.
- */
-static isl_stat top_module_io_gen_ext_module(
-    struct autosa_gen *gen, struct autosa_hw_top_module *top,
-    struct autosa_hw_module *module, struct autosa_array_ref_group *group) {
-  isl_schedule *schedule;
-  isl_ctx *ctx = gen->ctx;
-  isl_schedule_node *node, *graft;
-  isl_id *id;
-  struct autosa_kernel *kernel = gen->kernel;
-  isl_printer *p_str;
-  char *stmt_name;
-  isl_space *space;
-  isl_union_set *domain, *empty_filter, *lower_level_filter;
-  isl_bool insert_lower = isl_bool_false;
-  int boundary = module->boundary;
-  isl_union_set *boundary_filter, *non_boundary_filter;
-  isl_union_set_list *boundary_filters;
-
-  /* Only the top-level io module connected to the external memory is handled.
-   */
-  if (module->type == PE_MODULE || module->to_mem == 0) return isl_stat_ok;
-
-  /* Transform the schedule. */
-  schedule = isl_schedule_dup(group->io_schedule);
-  node = isl_schedule_get_root(schedule);
-  isl_schedule_free(schedule);
-
-  /* Delete the node above the array mark. */
-  node = autosa_tree_move_down_to_array(node, kernel->core);
-  node = isl_schedule_node_parent(node);
-  while (!autosa_tree_node_is_kernel(node)) {
-    node = isl_schedule_node_delete(node);
-    node = isl_schedule_node_parent(node);
-  }
-
-  /* Collect the filter for the boundary and non-boundary I/O module. */
-  if (boundary) {
-    node = autosa_tree_move_down_to_io_mark(node, kernel->core, module->level);
-    node = isl_schedule_node_parent(node);
-    if (isl_schedule_node_get_type(node) == isl_schedule_node_band) {
-      boundary_filter = schedule_eq_ub(node);
-      non_boundary_filter = schedule_neq_ub(node);
-      boundary_filters = isl_union_set_list_from_union_set(non_boundary_filter);
-      boundary_filters =
-          isl_union_set_list_add(boundary_filters, boundary_filter);
-
-      node = isl_schedule_node_child(node, 0);  // io_mark
-      node = isl_schedule_node_child(node, 0);  // band
-      node = isl_schedule_node_insert_sequence(node, boundary_filters);
-      /* The node now is right below the io_[module->level] mark. */
-    }
-  } else {
-    node = autosa_tree_move_down_to_io_mark(node, kernel->core, module->level);
-    node = isl_schedule_node_child(node, 0);
-  }
-
-  if (boundary) {
-    node = isl_schedule_node_child(node, 0);  // filter
-    node = isl_schedule_node_child(node, 0);  // band
-    /* non-boundary */
-    node = io_gen_ext_module(node, module, kernel, group, 0);
-    node = autosa_tree_move_down_to_io_mark(node, kernel->core, module->level);
-    node = isl_schedule_node_child(node, 0);  // sequence
-    node = isl_schedule_node_child(node, 1);  // filter
-    node = isl_schedule_node_child(node, 0);  // band
-    /* boundary */
-    node = io_gen_ext_module(node, module, kernel, group, 1);
-  } else {
-    node = io_gen_ext_module(node, module, kernel, group, 0);
-  }
-
-  /* Cleanup the schedule tree. Remove "array" and "io_LX" mark.
-   */
-  node = autosa_tree_move_down_to_io_mark(node, kernel->core, module->level);
-  node = isl_schedule_node_delete(node);
-  node = autosa_tree_move_up_to_array(node);
-  node = isl_schedule_node_delete(node);
-  node = autosa_tree_move_up_to_kernel(node);
-
-  /* Add module mark after the kernel mark.auto */
-  id = isl_id_alloc(ctx, "module", module);
-  node = isl_schedule_node_child(node, 0);
-  node = isl_schedule_node_insert_mark(node, id);
-
-  schedule = isl_schedule_node_get_schedule(node);
-  isl_schedule_node_free(node);
-
-  top->n_ext_module++;
-  top->ext_module_scheds = (isl_schedule **)realloc(
-      top->ext_module_scheds, top->n_ext_module * sizeof(isl_schedule *));
-  top->ext_module_scheds[top->n_ext_module - 1] = schedule;
-
-  return isl_stat_ok;
-}
-
 /* Generate the module calls for the io module.
  * If serialize is set as 1, we are generating the extra serialization module.
  */
@@ -5131,11 +4954,6 @@ static isl_stat top_module_io_gen(struct autosa_gen *gen,
 
   /* Generate the fifo declaration schedule. */
   top_module_io_gen_fifo_decl(gen, top, module, group);
-
-  /* Generate the external memory module arguments setting schedule. */
-  if (gen->options->target == AUTOSA_TARGET_INTEL_OPENCL) {
-    top_module_io_gen_ext_module(gen, top, module, group);
-  }
 
   return isl_stat_ok;
 }
@@ -8229,14 +8047,6 @@ static __isl_give isl_ast_node *autosa_generate_ast_from_schedule(
   return tree;
 }
 
-struct loop_infinitize_check_data {
-  /* Indicates if we are checking the outermost loop bands. */
-  isl_bool outer_for;
-  struct autosa_hw_module *module;
-  /* Indicates if we have found any infinitizable loop. */
-  isl_bool found;
-};
-
 struct iterator_used_data {
   isl_ast_expr *iterator;
   isl_bool used;
@@ -8419,127 +8229,6 @@ static isl_bool iterator_used(__isl_keep isl_ast_node *node, void *user) {
   return isl_bool_true;
 }
 
-static isl_bool loop_infinitize_check(__isl_keep isl_ast_node *node,
-                                      void *user) {
-  struct loop_infinitize_check_data *data =
-      (struct loop_infinitize_check_data *)user;
-  enum isl_ast_node_type type;
-
-  /* Only check the for loops in the outermost loop band. */
-  if (!data->outer_for) return isl_bool_false;
-
-  type = isl_ast_node_get_type(node);
-  if (type == isl_ast_node_block || type == isl_ast_node_user) {
-    data->outer_for = isl_bool_false;
-    return isl_bool_false;
-  }
-  if (type == isl_ast_node_for && !isl_ast_node_for_is_degenerate(node)) {
-    isl_ast_expr *iterator;
-    isl_ast_node *body;
-    isl_bool used = isl_bool_false;
-    struct iterator_used_data used_data;
-    isl_id *id;
-
-    iterator = isl_ast_node_for_get_iterator(node);
-    body = isl_ast_node_for_get_body(node);
-    /* Examine if the iterator exists in any AST expressions in the sub tree. */
-    used_data.iterator = iterator;
-    used_data.used = isl_bool_false;
-    used_data.module = data->module;
-    used_data.has_inter_intra = isl_bool_false;
-    isl_ast_node_foreach_descendant_top_down(body, &iterator_used,
-                                             &used_data);  // TODO
-
-    if (!used_data.used) {
-      /* This loop is legal to be infinitized. */
-      struct autosa_ast_node_userinfo *node_info;
-
-      id = isl_ast_node_get_annotation(node);
-      if (id) {
-        node_info = (struct autosa_ast_node_userinfo *)isl_id_get_user(id);
-        if (node_info) {
-          node_info->is_infinitize_legal = 1;
-          if (!data->found) {
-            node_info->is_first_infinitizable_loop = 1;
-            data->found = isl_bool_true;
-          }
-
-          if (used_data.has_inter_intra) {
-            isl_space *space;
-            int n;
-            isl_printer *p_str;
-            char *iterator_str;
-            /* Update the inter/intra_trans module space.
-             * Remove the corresponding iterators from the sub module space.
-             */
-            p_str = isl_printer_to_str(isl_id_get_ctx(id));
-            p_str = isl_printer_set_output_format(p_str, ISL_FORMAT_C);
-            p_str = isl_printer_print_ast_expr(p_str, iterator);
-            iterator_str = isl_printer_get_str(p_str);
-            isl_printer_free(p_str);
-
-            space = data->module->inter_space;
-            n = isl_space_find_dim_by_name(space, isl_dim_set, iterator_str);
-            if (n >= 0) space = isl_space_drop_dims(space, isl_dim_set, n, 1);
-            data->module->inter_space = space;
-
-            space = data->module->intra_space;
-            n = isl_space_find_dim_by_name(space, isl_dim_set, iterator_str);
-            if (n >= 0) space = isl_space_drop_dims(space, isl_dim_set, n, 1);
-            data->module->intra_space = space;
-
-            free(iterator_str);
-          }
-        }
-        isl_id_free(id);
-      }
-    } else {
-      /* Stop from here. */
-      isl_ast_expr_free(iterator);
-      isl_ast_node_free(body);
-      return isl_bool_false;
-    }
-
-    isl_ast_expr_free(iterator);
-    isl_ast_node_free(body);
-  }
-
-  return isl_bool_true;
-}
-
-/* Try to apply the loop infinitization optimization.
- * This optimization is useful for Intel devices since we can remove some
- * for loops with a simple while (1) loop to reduce the loop control overheads.
- * We will examine the outermost for loop band from outside to inside.
- * For each for loop, we exmaine if the loop iterator appears in any AST
- * expression below. If not, this loop will be marked to be infinitized later.
- * When printing out for loops later, such loops will be skipped.
- * Since we use the nested AST for module ASTs, we examine the
- * module->tree.
- * If we encounter any AST node calling
- * io_module.inter_trans/io_module.intra_trans, we will search from
- * module->intra_tree and module->inter_tree else, we will search from
- * module->device_tree.
- */
-static void loop_infinitization_optimize(struct autosa_hw_module *module) {
-  if (module->double_buffer || module->to_mem) return;
-
-  if (module->device_tree) {
-    isl_ast_node *node = module->device_tree;
-    struct loop_infinitize_check_data data = {isl_bool_true, module,
-                                              isl_bool_false};
-    isl_ast_node_foreach_descendant_top_down(node, &loop_infinitize_check,
-                                             &data);
-  }
-  if (module->boundary_tree) {
-    isl_ast_node *node = module->boundary_tree;
-    struct loop_infinitize_check_data data = {isl_bool_true, module,
-                                              isl_bool_false};
-    isl_ast_node_foreach_descendant_top_down(node, &loop_infinitize_check,
-                                             &data);
-  }
-}
-
 /* Mark all for loop as visited.
  */
 static isl_bool update_for_visit(__isl_keep isl_ast_node *node, void *user) {
@@ -8596,39 +8285,6 @@ static isl_bool loop_coalesce_update(__isl_keep isl_ast_node *node,
   }
 
   return isl_bool_true;
-}
-
-/* This function will mark the outermost for loop which is not infinitized
- * to be added with "loop_coalesce" pragma later in the generated OpenCL code.
- * We will examine all the AST trees to be printed for this module.
- */
-static void loop_coalesce_optimize(struct autosa_hw_module *module) {
-  isl_ast_node *node;
-
-  if (module->device_tree) {
-    node = module->device_tree;
-    isl_ast_node_foreach_descendant_top_down(node, &loop_coalesce_update, NULL);
-  }
-  if (module->inter_tree) {
-    node = module->inter_tree;
-    isl_ast_node_foreach_descendant_top_down(node, &loop_coalesce_update, NULL);
-  }
-  if (module->intra_tree) {
-    node = module->intra_tree;
-    isl_ast_node_foreach_descendant_top_down(node, &loop_coalesce_update, NULL);
-  }
-  if (module->boundary_outer_tree) {
-    node = module->boundary_outer_tree;
-    isl_ast_node_foreach_descendant_top_down(node, &loop_coalesce_update, NULL);
-  }
-  if (module->boundary_inter_tree) {
-    node = module->boundary_inter_tree;
-    isl_ast_node_foreach_descendant_top_down(node, &loop_coalesce_update, NULL);
-  }
-  if (module->boundary_tree) {
-    node = module->boundary_tree;
-    isl_ast_node_foreach_descendant_top_down(node, &loop_coalesce_update, NULL);
-  }
 }
 
 /* There are three schedules to handle in this module:
@@ -8703,18 +8359,6 @@ isl_stat sa_filter_buffer_io_module_generate_code(
     isl_ast_node_free(tree);
   }
 
-  /* Perform loop infinitization optimization. */
-  if (gen->options->target == AUTOSA_TARGET_INTEL_OPENCL &&
-      gen->options->autosa->loop_infinitize) {
-    loop_infinitization_optimize(module);
-  }
-  /* Perform loop coalesce optimization.
-   * This step should be always after the loop infinitization opt.
-   */
-  if (gen->options->target == AUTOSA_TARGET_INTEL_OPENCL) {
-    loop_coalesce_optimize(module);
-  }
-
   return isl_stat_ok;
 }
 
@@ -8772,18 +8416,6 @@ isl_stat sa_module_generate_code(struct autosa_gen *gen,
       tree = autosa_generate_ast_from_schedule(schedule, data, gen, NULL);
       isl_ast_node_free(tree);
     }
-  }
-
-  /* Perform loop infinitization optimization. */
-  if (gen->options->target == AUTOSA_TARGET_INTEL_OPENCL &&
-      gen->options->autosa->loop_infinitize) {
-    loop_infinitization_optimize(module);
-  }
-  /* Perform loop coalesce optimization.
-   * This step should be always after the loop infinitization opt.
-   */
-  if (gen->options->target == AUTOSA_TARGET_INTEL_OPENCL) {
-    loop_coalesce_optimize(module);
   }
 
   return isl_stat_ok;
@@ -8986,99 +8618,6 @@ __isl_give isl_ast_node *sa_module_call_generate_code(
   return tree;
 }
 
-/* This function is called after the AST generator has finished traversing
- * the schedule subtree of a mark node. "node" points to the corresponding
- * mark AST node.
- *
- * If the mark is called "module call", then replace "node" by a user node
- * that "calls" the module call, representing the printing of module calls.
- * We will store the AST node into the module_call_wrapped_trees.
- */
-static __isl_give isl_ast_node *after_mark_ext_module(
-    __isl_take isl_ast_node *node, __isl_keep isl_ast_build *build,
-    void *user) {
-  isl_ctx *ctx;
-  isl_id *id;
-  isl_ast_expr *expr;
-  isl_ast_expr_list *list;
-  struct autosa_kernel *kernel;
-  struct autosa_at_domain_data *data = (struct autosa_at_domain_data *)user;
-  struct autosa_hw_module *module;
-  struct autosa_hw_top_module *top;
-
-  ctx = isl_ast_node_get_ctx(node);
-  id = isl_ast_node_mark_get_id(node);
-  if (!id) return isl_ast_node_free(node);
-
-  if (!strcmp(isl_id_get_name(id), "kernel") && data->kernel) {
-    isl_id_free(id);
-    if (!data->kernel->space)
-      data->kernel->space = isl_ast_build_get_schedule_space(build);
-    data->kernel = NULL;
-    return node;
-  }
-  if (strcmp(isl_id_get_name(id), "module") || !data->module) {
-    isl_id_free(id);
-    return node;
-  }
-  top = data->top;
-  data->top = NULL;
-  top->n_ext_module_wrapped++;
-  top->ext_module_wrapped_trees = (isl_ast_node **)realloc(
-      top->ext_module_wrapped_trees,
-      top->n_ext_module_wrapped * sizeof(isl_ast_node *));
-  top->ext_module_wrapped_trees[top->n_ext_module_wrapped - 1] =
-      isl_ast_node_mark_get_node(node);
-  isl_ast_node_free(node);
-
-  expr = isl_ast_expr_from_id(isl_id_copy(id));
-  list = isl_ast_expr_list_alloc(ctx, 0);
-  expr = isl_ast_expr_call(expr, list);
-  node = isl_ast_node_alloc_user(expr);
-  node = isl_ast_node_set_annotation(node, id);
-
-  return node;
-}
-
-/* Generate code for setting arguments of the io modules connected to the
- * external memory given the input schedule "schedule".
- */
-__isl_give isl_ast_node *sa_set_ext_module_args_generate_code(
-    struct autosa_gen *gen, __isl_take isl_schedule *schedule) {
-  struct autosa_at_domain_data data;
-  isl_ast_build *build;
-  isl_ast_node *tree;
-  isl_id_list *iterators;
-
-  int depth;
-
-  if (schedule == NULL) return NULL;
-
-  data.prog = gen->prog;
-  data.kernel = NULL;
-  data.module = NULL;
-  data.pe_dummy_module = NULL;
-  data.top = gen->hw_top_module;
-
-  depth = 0;
-  if (isl_schedule_foreach_schedule_node_top_down(schedule, &update_depth,
-                                                  &depth) < 0)
-    schedule = isl_schedule_free(schedule);
-  build = isl_ast_build_alloc(gen->prog->ctx);
-  iterators = ppcg_scop_generate_names(gen->prog->scop, depth, "c");
-  build = isl_ast_build_set_iterators(build, iterators);
-  build = isl_ast_build_set_at_each_domain(build, &at_domain_module, &data);
-  build = isl_ast_build_set_before_each_mark(build, &before_mark_module, &data);
-  build =
-      isl_ast_build_set_after_each_mark(build, &after_mark_ext_module, &data);
-  if (gen->prog->scop->options->debug->dump_final_schedule)
-    isl_schedule_dump(schedule);
-  tree = isl_ast_build_node_from_schedule(build, schedule);
-  isl_ast_build_free(build);
-
-  return tree;
-}
-
 /* Generate AST for module calls and fifo decls in the top module.
  */
 isl_stat sa_top_module_generate_code(struct autosa_gen *gen) {
@@ -9097,15 +8636,6 @@ isl_stat sa_top_module_generate_code(struct autosa_gen *gen) {
   for (int i = 0; i < top->n_module_calls; i++) {
     top->module_call_trees[i] =
         sa_module_call_generate_code(gen, top->module_call_scheds[i]);
-  }
-
-  if (gen->options->target == AUTOSA_TARGET_INTEL_OPENCL) {
-    top->ext_module_trees =
-        (isl_ast_node **)malloc(top->n_ext_module * sizeof(isl_ast_node *));
-    for (int i = 0; i < top->n_ext_module; i++) {
-      top->ext_module_trees[i] =
-          sa_set_ext_module_args_generate_code(gen, top->ext_module_scheds[i]);
-    }
   }
 
   return isl_stat_ok;

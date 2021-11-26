@@ -1696,12 +1696,6 @@ def main():
         default='autosa_config/optimizer_settings.json',
         help='optimizer settings')
     parser.add_argument(
-        '-p',
-        '--platform',
-        metavar='PLATFORM',
-        required=True,
-        help='hardware platform: intel/xilinx')
-    parser.add_argument(
         '--training',
         action='store_true',
         help='run training phase')
@@ -1727,17 +1721,14 @@ def main():
     with open(args.setting) as f:
         setting = json.load(f)
 
-    if args.platform == 'intel':
-        print("Intel platform is not supported yet!")  # TODO
-    elif args.platform == 'xilinx':
-        xilinx_run(
-            args.cmd,
-            args.info,
-            setting,
-            args.training,
-            args.search,
-            args.verbose,
-            args.tmp_dir)
+    xilinx_run(
+        args.cmd,
+        args.info,
+        setting,
+        args.training,
+        args.search,
+        args.verbose,
+        args.tmp_dir)
 
 if __name__ == "__main__":
     main()

@@ -10,39 +10,8 @@
 
 #include "ppcg_options.h"
 
-static struct isl_arg_choice target[] = {
-    {"autosa_hls_c", AUTOSA_TARGET_XILINX_HLS_C}, {0}};
-
 static struct isl_arg_choice sa_type[] = {
     {"sync", AUTOSA_SA_TYPE_SYNC}, {"async", AUTOSA_SA_TYPE_ASYNC}, {0}};
-
-/* Set defaults that depend on the target.
- * In particular, set --schedule-outer-coincidence iff target is a GPU.
- */
-void ppcg_options_set_target_defaults(struct ppcg_options *options) {
-  char *argv[2] = {NULL};
-
-  argv[0] = "ppcg_options_set_target_defaults";
-  if (options->target == PPCG_TARGET_C)
-    argv[1] = "--no-schedule-outer-coincidence";
-  else
-    argv[1] = "--schedule-outer-coincidence";
-
-  isl_options_parse(options->isl, 2, argv, ISL_ARG_ALL);
-}
-
-/* Callback that is called whenever the "target" option is set (to "val").
- * The callback is called after target has been updated.
- *
- * Call ppcg_options_set_target_defaults to reset the target-dependent options.
- */
-static int set_target(void *opt, unsigned val) {
-  struct ppcg_options *options = opt;
-
-  ppcg_options_set_target_defaults(options);
-
-  return 0;
-}
 
 ISL_ARGS_START(struct ppcg_debug_options, ppcg_debug_options_args)
 ISL_ARG_BOOL(struct ppcg_debug_options, dump_schedule_constraints, 0,
@@ -92,20 +61,17 @@ ISL_ARG_INT(
 ISL_ARG_BOOL(struct autosa_options, hbm, 0, "hbm", 0, "use multi-port DRAM/HBM")
 ISL_ARG_INT(struct autosa_options, n_hbm_port, 0, "hbm-port-num", "num", 2,
             "default HBM port number")
-ISL_ARG_BOOL(struct autosa_options, hls, 0, "hls", 0,
-             "generate Xilinx HLS host")
+ISL_ARG_BOOL(struct autosa_options, hls, 0, "hls", 0, "generate HLS host")
 ISL_ARG_BOOL(struct autosa_options, host_serialize, 0, "host-serialize", 0,
              "serialize/deserialize the host data")
 ISL_ARG_BOOL(struct autosa_options, insert_hls_dependence, 0,
              "insert-hls-dependence", 0,
-             "insert Xilinx HLS dependence pragma (alpha version)")
+             "insert HLS dependence pragma (alpha version)")
 ISL_ARG_INT(struct autosa_options, int_io_dir, 0, "int-io-dir", "dir", 0,
             "set the default interior I/O direction. 0: [1,x] 1: [x,1]")
 ISL_ARG_BOOL(struct autosa_options, io_module_embedding, 0,
              "io-module-embedding", 0,
              "embed the I/O modules inside PEs if possible")
-ISL_ARG_BOOL(struct autosa_options, loop_infinitize, 0, "loop-infinitize", 0,
-             "apply loop infinitization optimization (Intel OpenCL only)")
 ISL_ARG_BOOL(struct autosa_options, local_reduce, 0, "local-reduce", 0,
              "generate non-output-stationary array with local reduction")
 ISL_ARG_BOOL(struct autosa_options, lower_int_io_L1_buffer, 0,
@@ -141,7 +107,7 @@ ISL_ARG_BOOL(struct autosa_options, t2s_tile, 0, "t2s-tile", 0,
              "generate T2S code from tiled code")
 ISL_ARG_INT(struct autosa_options, t2s_tile_phase, 0, "t2s-tile-phase", "phase",
             0, "T2S tiled URE codegen phase")
-ISL_ARG_BOOL(struct autosa_options, uram, 0, "uram", 0, "use Xilinx FPGA URAM")
+ISL_ARG_BOOL(struct autosa_options, uram, 0, "uram", 0, "use FPGA URAM")
 ISL_ARG_BOOL(struct autosa_options, verbose, 'v', "verbose", 0,
              "print verbose compilation information")
 ISL_ARGS_END
@@ -180,9 +146,6 @@ ISL_ARG_INT(struct ppcg_options, max_shared_memory, 0, "max-shared-memory",
             "size", 8192, "maximal amount of shared memory")
 ISL_ARG_BOOL(struct ppcg_options, openmp, 0, "openmp", 0,
              "Generate OpenMP macros (only for C target)")
-ISL_ARG_USER_OPT_CHOICE(struct ppcg_options, target, 0, "target", target,
-                        &set_target, PPCG_TARGET_CUDA, PPCG_TARGET_CUDA,
-                        "the target to generate code for")
 ISL_ARG_BOOL(struct ppcg_options, linearize_device_arrays, 0,
              "linearize-device-arrays", 1,
              "linearize all device arrays, even those of fixed size")

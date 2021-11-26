@@ -249,21 +249,16 @@ def simplify_expressions(lines):
     return lines
 
 
-def shrink_bit_width(lines, target):
+def shrink_bit_width(lines):
     """Calculate the bitwidth of the iterator and shrink it to the proper size
 
     We will examine the for loops. Examine the upper bound of the loop. If the
     upper bound is a number, we will compute the bitwidth of the iterator.
-    For Intel target, we will also look for iterator definitions marked with
-    "/* UB: [...] */". The shallow bitwidth is calculated and replace the previous
-    data type.
 
     Parameters
     ----------
     lines:
         contains the codelines of the program
-    target:
-        xilinx|intel
     """
 
     code_len = len(lines)
@@ -277,10 +272,7 @@ def shrink_bit_width(lines, target):
                 if ub.isnumeric():
                     # Replace it with shallow bit width
                     bitwidth = int(np.ceil(np.log2(float(ub) + 1))) + 1
-                    if target == "xilinx":
-                        new_iter_t = "ap_uint<" + str(bitwidth) + ">"
-                    elif target == "intel":
-                        new_iter_t = "uint" + str(bitwidth) + "_t"
+                    new_iter_t = "ap_uint<" + str(bitwidth) + ">"
                     line = re.sub("int", new_iter_t, line)
                     lines[pos] = line
             m = re.search("<(.+?);", line)
@@ -301,10 +293,7 @@ def shrink_bit_width(lines, target):
             if ub.isnumeric():
                 # Replace it with shallow bit width
                 bitwidth = int(np.ceil(np.log2(float(ub) + 1))) + 1
-                if target == "xilinx":
-                    new_iter_t = "ap_uint<" + str(bitwidth) + ">"
-                elif target == "intel":
-                    new_iter_t = "uint" + str(bitwidth) + "_t"
+                new_iter_t = "ap_uint<" + str(bitwidth) + ">"
                 line = re.sub(
                     r"(int)" + r"\s" + r"([a-zA-Z])", new_iter_t + r" \g<2>", line
                 )
@@ -620,9 +609,7 @@ def reorder_module_calls(lines):
     return lines
 
 
-def xilinx_run(
-    kernel_call, kernel_def, kernel="heterosa.out/src/kernel_kernel.cpp", host="opencl"
-):
+def xilinx_run(kernel_call, kernel_def, kernel="heterosa.out/src/kernel_kernel.cpp"):
     """Generate the kernel file for Xilinx platform
 
     We will copy the content of kernel definitions before the kernel calls.
@@ -649,7 +636,7 @@ def xilinx_run(
     lines = simplify_expressions(lines)
 
     # Change the loop iterator type
-    lines = shrink_bit_width(lines, "xilinx")
+    lines = shrink_bit_width(lines)
 
     # Insert the HLS pragmas
     lines = insert_xlnx_pragmas(lines)
@@ -661,16 +648,14 @@ def xilinx_run(
     print("Please find the generated file: " + kernel)
 
     with open(kernel, "w") as f:
-        if host == "opencl":
-            # Merge kernel header file
-            kernel_header = kernel.split(".")
-            kernel_header[-1] = "h"
-            kernel_header = ".".join(kernel_header)
-            with open(kernel_header, "r") as f2:
-                header_lines = f2.readlines()
-                f.writelines(header_lines)
-            f.write("\n")
-
+        # Merge kernel header file
+        kernel_header = kernel.split(".")
+        kernel_header[-1] = "h"
+        kernel_header = ".".join(kernel_header)
+        with open(kernel_header, "r") as f2:
+            header_lines = f2.readlines()
+            f.writelines(header_lines)
+        f.write("\n")
         f.writelines(lines)
 
         # Reorder module calls
@@ -695,27 +680,12 @@ def main():
         help="kernel function definition",
     )
     parser.add_argument(
-        "-t",
-        "--target",
-        metavar="TARGET",
-        required=True,
-        help="hardware target: autosa_hls_c",
-    )
-    parser.add_argument(
         "-o", "--output", metavar="OUTPUT", required=False, help="output kernel file"
-    )
-    parser.add_argument(
-        "--host",
-        metavar="HOST",
-        required=False,
-        help="Xilinx host target: hls|opencl",
-        default="opencl",
     )
 
     args = parser.parse_args()
 
-    if args.target == "autosa_hls_c":
-        xilinx_run(args.kernel_call, args.kernel_def, args.output, args.host)
+    xilinx_run(args.kernel_call, args.kernel_def, args.output)
 
 
 if __name__ == "__main__":
