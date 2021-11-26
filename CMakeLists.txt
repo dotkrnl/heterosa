@@ -13,15 +13,16 @@ add_subdirectory(backend)
 list(
     APPEND
     CPACK_DEBIAN_PACKAGE_DEPENDS
-    "automake"
     "autoconf"
+    "automake"
     "libtool"
     "pkg-config"
-    "libgmp3-dev"
-    "libyaml-dev"
     "libclang-dev"
-    "llvm"
+    "libgmp3-dev"
     "libisl-dev"
+    "libntl-dev"
+    "libyaml-dev"
+    "llvm-dev"
 )
 list(SORT CPACK_DEBIAN_PACKAGE_DEPENDS)
 list(JOIN CPACK_DEBIAN_PACKAGE_DEPENDS ", " CPACK_DEBIAN_PACKAGE_DEPENDS)
