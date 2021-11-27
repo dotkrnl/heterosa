@@ -505,111 +505,7 @@ def insert_dummy_modules(def_lines, call_lines):
     return def_lines, call_lines
 
 
-def reorder_module_calls(lines):
-    """Reorder the module calls in the program
-
-    For I/O module calls, we will reverse the sequence of calls for output modules.
-    Starting from the first module, enlist the module calls until the boundary module
-    is met.
-    Reverse the list and print it.
-
-    Parameters
-    ----------
-    lines: list
-        contains the codelines of the program
-    """
-
-    code_len = len(lines)
-    module_calls = []
-    module_start = 0
-    module_call = []
-    output_io = 0
-    boundary = 0
-    new_module = 0
-    prev_module_name = ""
-    first_line = -1
-    last_line = -1
-    reset = 0
-
-    for pos in range(code_len):
-        line = lines[pos]
-        if line.find("/* Module Call */") != -1:
-            if module_start == 0:
-                module_start = 1
-            else:
-                module_start = 0
-
-            if module_start:
-                # Examine if the module is an output I/O module
-                nxt_line = lines[pos + 1]
-                if nxt_line.find("IO") != -1 and nxt_line.find("out") != -1:
-                    output_io = 1
-                    # Examine if the module is an boundary module
-                    if nxt_line.find("boundary") != -1:
-                        boundary = 1
-                # Extract the module name
-                nxt_line = nxt_line.strip()
-                if nxt_line.find("<") != -1:
-                    module_name = nxt_line.split("<")[0]
-                else:
-                    module_name = nxt_line.split("(")[0]
-                if module_name.find("wrapper"):
-                    module_name = module_name[:-8]
-                if boundary:
-                    module_name = module_name[:-9]
-                if prev_module_name == "":
-                    prev_module_name = module_name
-                    first_line = pos
-                else:
-                    if prev_module_name != module_name:
-                        new_module = 1
-                        prev_module_name = module_name
-                        first_line = pos
-                        reset = 0
-                    else:
-                        if reset:
-                            first_line = pos
-                            reset = 0
-                        new_module = 0
-
-            if not module_start:
-                if output_io:
-                    last_line = pos
-                    module_call.append(line)
-                    module_calls.append(module_call.copy())
-                    module_call.clear()
-                    if boundary:
-                        # Pop out the previous module calls except the last one
-                        if new_module:
-                            module_calls = module_calls[-1:]
-                        # Reverse the list
-                        module_calls.reverse()
-                        # Insert it back
-                        left_lines = lines[last_line + 1 :]
-                        lines = lines[:first_line]
-                        first = 1
-                        for c in module_calls:
-                            if not first:
-                                lines.append("\n")
-                            lines = lines + c
-                            first = 0
-                        lines = lines + left_lines
-                        # Clean up
-                        module_calls.clear()
-                        boundary = 0
-                        output_io = 0
-                        reset = 1
-                    if new_module:
-                        # Pop out the previous module calls except the last one
-                        module_calls = module_calls[-1:]
-
-        if module_start and output_io:
-            module_call.append(line)
-
-    return lines
-
-
-def xilinx_run(kernel_call, kernel_def, kernel="heterosa.out/src/kernel_kernel.cpp"):
+def codegen_run(kernel_call, kernel_def, kernel="heterosa.out/src/kernel_kernel.cpp"):
     """Generate the kernel file for Xilinx platform
 
     We will copy the content of kernel definitions before the kernel calls.
@@ -648,18 +544,8 @@ def xilinx_run(kernel_call, kernel_def, kernel="heterosa.out/src/kernel_kernel.c
     print("Please find the generated file: " + kernel)
 
     with open(kernel, "w") as f:
-        # Merge kernel header file
-        kernel_header = kernel.split(".")
-        kernel_header[-1] = "h"
-        kernel_header = ".".join(kernel_header)
-        with open(kernel_header, "r") as f2:
-            header_lines = f2.readlines()
-            f.writelines(header_lines)
         f.write("\n")
         f.writelines(lines)
-
-        # Reorder module calls
-        call_lines = reorder_module_calls(call_lines)
         f.writelines(call_lines)
 
 
@@ -685,7 +571,7 @@ def main():
 
     args = parser.parse_args()
 
-    xilinx_run(args.kernel_call, args.kernel_def, args.output)
+    codegen_run(args.kernel_call, args.kernel_def, args.output)
 
 
 if __name__ == "__main__":

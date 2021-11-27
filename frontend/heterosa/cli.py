@@ -97,7 +97,7 @@ def main():
             exec_sys_cmd(f"cp {headers} {output_dir}/src/")
 
         # Clean up the temp files
-        exec_sys_cmd(f"rm {output_dir}/src/{src_file_prefix}_kernel.h")
+        exec_sys_cmd(f"rm {output_dir}/src/{src_file_prefix}.c")
         exec_sys_cmd(f"rm {output_dir}/src/top_gen")
         exec_sys_cmd(f"rm {output_dir}/src/top.cpp")
         exec_sys_cmd(f"rm {output_dir}/src/{src_file_prefix}_top_gen.cpp")

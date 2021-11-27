@@ -17,12 +17,6 @@ __isl_give isl_printer *autosa_print_local_declarations(
     __isl_take isl_printer *p, struct autosa_prog *prog);
 __isl_give isl_printer *autosa_array_info_print_data_size(
     __isl_take isl_printer *p, struct autosa_array_info *array);
-__isl_give isl_printer *autosa_array_info_print_size(
-    __isl_take isl_printer *p, struct autosa_array_info *array);
-__isl_give isl_printer *autosa_array_info_print_serialize_size(
-    __isl_take isl_printer *p, struct autosa_array_info *array);
-__isl_give isl_printer *autosa_print_array_type(
-    __isl_take isl_printer *p, struct autosa_array_info *array);
 __isl_give isl_printer *autosa_print_array_type_with_lane(
     __isl_take isl_printer *p, struct autosa_array_info *array, int n_lane);
 __isl_give isl_printer *autosa_array_info_print_declaration_argument(
@@ -80,7 +74,7 @@ __isl_give isl_printer *print_host_serialize_arguments(
 /* FIFOs */
 __isl_give isl_printer *autosa_fifo_print_declaration_arguments(
     __isl_take isl_printer *p, struct autosa_array_ref_group *group, int n_lane,
-    const char *suffix);
+    const char *suffix, const char *direction);
 __isl_give isl_printer *autosa_fifo_print_call_argument(
     __isl_take isl_printer *p, struct autosa_array_ref_group *group,
     const char *suffix);
@@ -124,8 +118,10 @@ __isl_give isl_printer *autosa_kernel_print_host_serialize(
 
 __isl_give isl_printer *print_fifo_type(__isl_take isl_printer *p,
                                         struct autosa_array_ref_group *group,
-                                        int n_lane);
+                                        int n_lane, const char *direction);
 __isl_give isl_printer *print_fifo_rw(__isl_take isl_printer *p,
                                       const char *fifo_name, int read);
+
+enum IO_TRANS_DIR { GLOBAL_BUF, LOCAL_BUF, FIFO };
 
 #endif
