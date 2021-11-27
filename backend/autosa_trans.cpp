@@ -57,17 +57,20 @@ static cJSON *load_tuning_config(char *config_file) {
     buffer = (char *)malloc(length + 1);
     if (buffer) {
       buffer[length] = '\0';
-      int r = fread(buffer, 1, length, f);
+      fread(buffer, 1, length, f);
     }
     fclose(f);
-  } else {
-    printf("[AutoSA] Error: Can't open configuration file: %s\n", config_file);
-    exit(1);
-  }
-
-  if (buffer) {
     config = cJSON_Parse(buffer);
     free(buffer);
+  } else {
+    config = cJSON_Parse(R"JSON({
+      "space_time": {"mode": "auto"},
+      "array_part": {"enable": 1, "mode": "auto"},
+      "array_part_L2": {"enable": 1, "mode": "auto"},
+      "latency": {"enable": 1,"mode": "auto"},
+      "simd": {"enable": 1,"mode": "auto"},
+      "hbm": {"mode": "auto"}
+    })JSON");
   }
 
   return config;

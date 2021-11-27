@@ -62,7 +62,7 @@ ISL_ARG_BOOL(struct autosa_options, hbm, 0, "hbm", 0, "use multi-port DRAM/HBM")
 ISL_ARG_INT(struct autosa_options, n_hbm_port, 0, "hbm-port-num", "num", 2,
             "default HBM port number")
 ISL_ARG_BOOL(struct autosa_options, hls, 0, "hls", 0, "generate HLS host")
-ISL_ARG_BOOL(struct autosa_options, host_serialize, 0, "host-serialize", 0,
+ISL_ARG_BOOL(struct autosa_options, host_serialize, 0, "host-serialize", 1,
              "serialize/deserialize the host data")
 ISL_ARG_BOOL(struct autosa_options, insert_hls_dependence, 0,
              "insert-hls-dependence", 0,
