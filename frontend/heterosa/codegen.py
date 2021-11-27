@@ -249,59 +249,6 @@ def simplify_expressions(lines):
     return lines
 
 
-def shrink_bit_width(lines):
-    """Calculate the bitwidth of the iterator and shrink it to the proper size
-
-    We will examine the for loops. Examine the upper bound of the loop. If the
-    upper bound is a number, we will compute the bitwidth of the iterator.
-
-    Parameters
-    ----------
-    lines:
-        contains the codelines of the program
-    """
-
-    code_len = len(lines)
-    for pos in range(code_len):
-        line = lines[pos]
-        if line.find("for") != -1:
-            # Parse the loop upper bound
-            m = re.search("<=(.+?);", line)
-            if m:
-                ub = m.group(1).strip()
-                if ub.isnumeric():
-                    # Replace it with shallow bit width
-                    bitwidth = int(np.ceil(np.log2(float(ub) + 1))) + 1
-                    new_iter_t = "ap_uint<" + str(bitwidth) + ">"
-                    line = re.sub("int", new_iter_t, line)
-                    lines[pos] = line
-            m = re.search("<(.+?);", line)
-            if m:
-                ub = m.group(1).strip()
-                if ub.isnumeric():
-                    # Replace it with shallow bit width
-                    bitwidth = int(np.ceil(np.log2(float(ub)))) + 1
-                    new_iter_t = "ap_uint<" + str(bitwidth) + ">"
-                    line = re.sub("int", new_iter_t, line)
-                    lines[pos] = line
-
-    for pos in range(code_len):
-        line = lines[pos]
-        m = re.search(r"/\* UB: (.+?) \*/", line)
-        if m:
-            ub = m.group(1).strip()
-            if ub.isnumeric():
-                # Replace it with shallow bit width
-                bitwidth = int(np.ceil(np.log2(float(ub) + 1))) + 1
-                new_iter_t = "ap_uint<" + str(bitwidth) + ">"
-                line = re.sub(
-                    r"(int)" + r"\s" + r"([a-zA-Z])", new_iter_t + r" \g<2>", line
-                )
-                lines[pos] = line
-
-    return lines
-
-
 def lift_split_buffers(lines):
     """Lift the split buffers in the program
 
@@ -505,7 +452,9 @@ def insert_dummy_modules(def_lines, call_lines):
     return def_lines, call_lines
 
 
-def codegen_run(kernel_call, kernel_def, kernel="heterosa.out/src/kernel_kernel.cpp"):
+def codegen_run(
+    kernel_call, kernel_def, kernel="heterosa.out/src/kernel_kernel.cpp", quiet=False
+):
     """Generate the kernel file for Xilinx platform
 
     We will copy the content of kernel definitions before the kernel calls.
@@ -531,9 +480,6 @@ def codegen_run(kernel_call, kernel_def, kernel="heterosa.out/src/kernel_kernel.
     # Simplify the expressions
     lines = simplify_expressions(lines)
 
-    # Change the loop iterator type
-    lines = shrink_bit_width(lines)
-
     # Insert the HLS pragmas
     lines = insert_xlnx_pragmas(lines)
 
@@ -541,7 +487,8 @@ def codegen_run(kernel_call, kernel_def, kernel="heterosa.out/src/kernel_kernel.
     lines = lift_split_buffers(lines)
 
     kernel = str(kernel)
-    print("Please find the generated file: " + kernel)
+    if not quiet:
+        print("Please find the generated file: " + kernel)
 
     with open(kernel, "w") as f:
         f.write("\n")

@@ -1,108 +1,90 @@
 #!/usr/bin/env python3
+import argparse
+import shutil
+import os
 import sys
 import subprocess
-import os
-import time
-
-
-def exec_sys_cmd(cmd):
-    p = subprocess.Popen(cmd, shell=True)
-    ret = p.wait()
-    return ret
+from . import codegen
 
 
 def main():
-    # Some default values
-    output_dir = "./heterosa.out"
-    src_file_prefix = "kernel"
-    xilinx_host = "opencl"
-    search = False
+    parser = argparse.ArgumentParser(description="==== HeteroSA ====")
+    parser.add_argument("src_file")
+    parser.add_argument(
+        "--output-dir",
+        metavar="OUTPUT_DIR",
+        required=False,
+        default="./heterosa.out",
+        help="output directory",
+    )
+    parser.add_argument("--search", default=False, action="store_true")
+    parser.add_argument("--quiet", default=False, action="store_true")
+    args, _ = parser.parse_known_args()
 
-    # Parse and update the arguments
-    n_arg = len(sys.argv)
+    # Some default values
+    output_dir = args.output_dir
+    search = args.search
+    src_file = args.src_file
+    src_file_prefix = os.path.basename(src_file).split(".")[0]
+
+    # Arguments for heterosa_cc
     argv = sys.argv
     argv[0] = "heterosa_cc"
-    search_idx = -1
-    for i in range(n_arg):
-        arg = argv[i]
-        if "--output-dir" in arg:
-            output_dir = arg.split("=")[-1]
-        if "--search" in arg:
-            search = True
-            search_idx = i
-    if n_arg > 1:
-        src_file = argv[1]
-        src_file_prefix = os.path.basename(src_file).split(".")[0]
-    if search:
-        del argv[search_idx]
+    if "--search" in argv:
+        argv.remove("--search")
+    if "--quiet" in argv:
+        argv.remove("--quiet")
 
-    os.makedirs(output_dir + "/src", exist_ok=True)
-    os.makedirs(output_dir + "/latency_est", exist_ok=True)
-    os.makedirs(output_dir + "/resource_est", exist_ok=True)
-    os.makedirs(output_dir + "/tuning", exist_ok=True)
+    os.makedirs(f"{output_dir}/src", exist_ok=True)
+    os.makedirs(f"{output_dir}/latency_est", exist_ok=True)
+    os.makedirs(f"{output_dir}/resource_est", exist_ok=True)
+    os.makedirs(f"{output_dir}/tuning", exist_ok=True)
 
     # Execute the AutoSA
-    print("Executing AutoSA... Command: ", " ".join(argv))
-    process = subprocess.run(argv)
-    if process.returncode != 0 or not os.path.exists(output_dir + "/src/completed"):
+    if args.quiet:
+        process = subprocess.run(argv, stdout=open(os.devnull, "wb"))
+    else:
+        print("Command: ", " ".join(argv))
+        process = subprocess.run(argv)
+    if process.returncode != 0 or not os.path.exists(f"{output_dir}/src/completed"):
         print("[AutoSA] Error: Exit abnormally!")
         sys.exit(process.returncode)
-    exec_sys_cmd(f"rm {output_dir}/src/completed")
+    os.remove(f"{output_dir}/src/completed")
 
     # Generate the top module
-    print("[AutoSA] Post-processing the generated code...")
-    if not os.path.exists(f"{output_dir}/src/{src_file_prefix}_top_gen.cpp"):
-        raise RuntimeError(
-            f"{output_dir}/src/{src_file_prefix}_top_gen.cpp not exists."
-        )
-    cmd = (
-        "g++ -o "
-        + output_dir
-        + "/src/top_gen "
-        + output_dir
-        + "/src/"
-        + src_file_prefix
-        + "_top_gen.cpp "
-        + "-lisl"
-    )
-    exec_sys_cmd(cmd)
+    top_gen_code = f"{output_dir}/src/{src_file_prefix}_top_gen.cpp"
+    if not args.quiet:
+        print("[AutoSA] Post-processing the generated code...")
+    if not os.path.exists(top_gen_code):
+        raise RuntimeError(f"Top-level code generator not produced.")
+    cmd = f"g++ -o {output_dir}/src/top_gen {top_gen_code} -lisl"
+    os.system(cmd)
     my_env = os.environ.copy()
-    cwd = os.getcwd()
-    cmd = output_dir + "/src/top_gen"
+    cmd = f"{output_dir}/src/top_gen"
     process = subprocess.run(cmd.split(), env=my_env)
 
     if not search:
         # Generate the final code
-        cmd = (
-            "heterosa_codegen -c "
-            + output_dir
-            + "/src/top.cpp -d "
-            + output_dir
-            + "/src/"
-            + src_file_prefix
-            + "_kernel_modules.cpp -o "
-            + output_dir
-            + "/src/"
-            + src_file_prefix
-            + "_kernel.cpp"
+        codegen.codegen_run(
+            f"{output_dir}/src/top.cpp",
+            f"{output_dir}/src/{src_file_prefix}_kernel_modules.cpp",
+            f"{output_dir}/src/{src_file_prefix}_kernel.cpp",
+            args.quiet,
         )
-        exec_sys_cmd(cmd)
 
-        # Copy the input code to the output directory
-        exec_sys_cmd(f"cp {argv[1]} {output_dir}/src/")
+        # Copy the headers to the output directory
         headers = src_file.split(".")
         headers[-1] = "h"
         headers = ".".join(headers)
         if os.path.exists(headers):
-            exec_sys_cmd(f"cp {headers} {output_dir}/src/")
+            shutil.copy(headers, f"{output_dir}/src/")
 
         # Clean up the temp files
-        exec_sys_cmd(f"rm {output_dir}/src/{src_file_prefix}.c")
-        exec_sys_cmd(f"rm {output_dir}/src/top_gen")
-        exec_sys_cmd(f"rm {output_dir}/src/top.cpp")
-        exec_sys_cmd(f"rm {output_dir}/src/{src_file_prefix}_top_gen.cpp")
-        exec_sys_cmd(f"rm {output_dir}/src/{src_file_prefix}_top_gen.h")
-        exec_sys_cmd(f"rm {output_dir}/src/{src_file_prefix}_kernel_modules.cpp")
+        os.remove(f"{output_dir}/src/top_gen")
+        os.remove(f"{output_dir}/src/top.cpp")
+        os.remove(f"{output_dir}/src/{src_file_prefix}_top_gen.cpp")
+        os.remove(f"{output_dir}/src/{src_file_prefix}_top_gen.h")
+        os.remove(f"{output_dir}/src/{src_file_prefix}_kernel_modules.cpp")
 
 
 if __name__ == "__main__":
