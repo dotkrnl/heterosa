@@ -9,6 +9,8 @@ set(CPACK_PACKAGE_VERSION_PATCH 20211125.1)
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "AutoSA fork targeting TAPA")
 
 add_subdirectory(backend)
+enable_testing()
+add_subdirectory(examples)
 
 list(
     APPEND
