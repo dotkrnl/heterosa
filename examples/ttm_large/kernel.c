@@ -18,11 +18,11 @@ int main() {
   for (int i = 0; i < I; i++)
     for (int j = 0; j < J; j++)
       for (int l = 0; l < L; l++) {
-        A[i][j][l] = 2.5;
+        A[i][j][l] = (data_t)rand() / RAND_MAX;
       }
   for (int l = 0; l < L; l++)
     for (int k = 0; k < K; k++) {
-      B[k][l] = 2.5;
+      B[k][l] = (data_t)rand() / RAND_MAX;
     }
 
     // computation
@@ -30,6 +30,7 @@ int main() {
   for (int i = 0; i < I; i++)
     for (int j = 0; j < J; j++)
       for (int k = 0; k < K; k++) {
+        C[i][j][k] = 0;
         for (int l = 0; l < L; l++) {
           C[i][j][k] = C[i][j][k] + A[i][j][l] * B[k][l];
         }
@@ -51,8 +52,14 @@ int main() {
   for (int i = 0; i < I; i++)
     for (int j = 0; j < J; j++)
       for (int k = 0; k < K; k++) {
-        if (fabs(C_golden[i][j][k] - C[i][j][k]) > thres) {
+        if (fabs((C_golden[i][j][k] - C[i][j][k]) / C[i][j][k]) > thres) {
           err++;
+          printf("C[%d][%d][%d] = %f, C_golden[%d][%d][%d] = %f\n", i, j, k,
+                 C[i][j][k], i, j, k, C_golden[i][j][k]);
+          if (err > 10) {
+            printf("Too many errors, exiting\n");
+            exit(-1);
+          }
         }
       }
 

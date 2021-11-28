@@ -5,7 +5,7 @@ add_heterosa_target(
     INPUT         kernel.c
     SIMD_INFO     simd_info.json
     SA_SIZE       space_time[3] array_part[264,256,64] latency[11,32] simd[64]
-    # TODO: DATAPACK_SIZE A[32,32,64] B[32,32,64] C[32,32,64]
+    DATAPACK_SIZE A[32,32,64] B[32,32,64] C[32,32,64]
     CONFIG        ${CMAKE_CURRENT_SOURCE_DIR}/../../resources/heterosa_config.json
 )
 
@@ -22,5 +22,5 @@ if(TAPA_FOUND AND FRT_FOUND)
     set_source_files_properties(${TAPA_PATH}/src/kernel_host.cpp PROPERTIES GENERATED 1)
     set_source_files_properties(${TAPA_PATH}/src/kernel_kernel.cpp PROPERTIES GENERATED 1)
     target_link_libraries(mm-int8-large PUBLIC tapa::tapa frt::frt)
-    add_test(NAME mm-int8-large-test COMMAND bash -c "TAPA_CONCURRENCY=16 ./mm-int8-large")
+    add_test(NAME mm-int8-large-test COMMAND mm-int8-large)
 endif()

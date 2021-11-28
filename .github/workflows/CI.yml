@@ -1,0 +1,30 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, ubuntu-20.04]
+
+    steps:
+    - name: Checkout myself
+      uses: actions/checkout@v1
+    - name: Install dependencies
+      run: bash ./.github/scripts/install-build-deps.sh
+    - name: Install Python dependencies
+      run: pip install -e frontend
+    - name: Configure myself
+      run: cmake -S . -B build
+    - name: Cache _deps
+      uses: actions/cache@v1
+      with:
+        path: build/_deps
+        key: ${{ matrix.os }}-deps-202111-1
+    - name: Build myself
+      run: cmake --build build --target all
+    - name: Test myself
+      run: cmake --build build --target test

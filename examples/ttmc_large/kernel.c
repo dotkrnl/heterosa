@@ -18,15 +18,15 @@ int main() {
   for (int i = 0; i < I; i++)
     for (int l = 0; l < L; l++)
       for (int m = 0; m < M; m++) {
-        A[i][m][l] = 2.5;
+        A[i][m][l] = (data_t)rand() / RAND_MAX;
       }
   for (int l = 0; l < L; l++)
     for (int j = 0; j < J; j++) {
-      B[j][l] = 2.5;
+      B[j][l] = (data_t)rand() / RAND_MAX;
     }
   for (int m = 0; m < M; m++)
     for (int k = 0; k < K; k++) {
-      C[k][m] = 2.5;
+      C[k][m] = (data_t)rand() / RAND_MAX;
     }
 
     // computation
@@ -58,8 +58,14 @@ int main() {
   for (int i = 0; i < I; i++)
     for (int j = 0; j < J; j++)
       for (int k = 0; k < K; k++) {
-        if (fabs(D_golden[i][j][k] - D[i][j][k]) > thres) {
+        if (fabs((D_golden[i][j][k] - D[i][j][k]) / D[i][j][k]) > thres) {
           err++;
+          printf("D[%d][%d][%d] = %f, D_golden[%d][%d][%d] = %f\n", i, j, k,
+                 D[i][j][k], i, j, k, D_golden[i][j][k]);
+          if (err > 10) {
+            printf("Too many errors, exiting\n");
+            exit(-1);
+          }
         }
       }
 

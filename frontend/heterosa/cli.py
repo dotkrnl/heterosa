@@ -41,12 +41,15 @@ def main():
     os.makedirs(f"{output_dir}/tuning", exist_ok=True)
 
     # Execute the AutoSA
-    if args.quiet:
-        process = subprocess.run(argv, stdout=open(os.devnull, "wb"))
-    else:
+    if not args.quiet:
         print("Command: ", " ".join(argv))
-        process = subprocess.run(argv)
-    if process.returncode != 0 or not os.path.exists(f"{output_dir}/src/completed"):
+    process = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    failed = process.returncode != 0 or not os.path.exists(
+        f"{output_dir}/src/completed"
+    )
+    if not args.quiet or failed:
+        print("[AutoSA] Output:", process.stdout.decode("utf-8"), sep="\n")
+    if failed:
         print("[AutoSA] Error: Exit abnormally!")
         sys.exit(process.returncode)
     os.remove(f"{output_dir}/src/completed")
@@ -56,7 +59,8 @@ def main():
     if not args.quiet:
         print("[AutoSA] Post-processing the generated code...")
     if not os.path.exists(top_gen_code):
-        raise RuntimeError(f"Top-level code generator not produced.")
+        print("[AutoSA] Error: Top-level code generator not produced.")
+        sys.exit(1)
     cmd = f"g++ -o {output_dir}/src/top_gen {top_gen_code} -lisl"
     os.system(cmd)
     my_env = os.environ.copy()

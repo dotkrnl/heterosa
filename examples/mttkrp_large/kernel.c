@@ -18,20 +18,18 @@ int main() {
   for (int i = 0; i < I; i++)
     for (int k = 0; k < K; k++)
       for (int l = 0; l < L; l++) {
-        A[i][k][l] = 2.5;
+        A[i][k][l] = (data_t)rand() / RAND_MAX;
       }
   for (int k = 0; k < K; k++)
     for (int j = 0; j < J; j++) {
-      B[k][j] = 2.5;
+      B[k][j] = (data_t)rand() / RAND_MAX;
     }
   for (int l = 0; l < L; l++)
     for (int j = 0; j < J; j++) {
-      //      C[l][j] = 2.5;
-      C[j][l] = 2.5;
+      C[j][l] = (data_t)rand() / RAND_MAX;
     }
-  data_t tmp;
 
-  // computation
+    // computation
 #pragma scop
   for (int i = 0; i < I; i++)
     for (int j = 0; j < J; j++) {
@@ -58,11 +56,18 @@ int main() {
 
   // comparison
   int err = 0;
-  float thres = 0.01;
+  float thres = 0.001;
   for (int i = 0; i < I; i++)
     for (int j = 0; j < J; j++) {
-      if (fabs((float)D_golden[i][j] - (float)D[i][j]) > thres) {
+      if (fabs(((float)D_golden[i][j] - (float)D[i][j]) / (float)D[i][j]) >
+          thres) {
         err++;
+        printf("D[%d][%d] = %f, D_golden[%d][%d] = %f\n", i, j, D[i][j], i, j,
+               D_golden[i][j]);
+        if (err > 16) {
+          printf("Too many errors, aborting\n");
+          return -1;
+        }
       }
     }
 
