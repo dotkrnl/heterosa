@@ -1,16 +1,16 @@
 #include "kernel.h"
 
 int main(int argc, char **argv) {
-  data_t A[I][K], B[J][K], C[I][J], C_golden[I][J];
+  static data_t A[I][K], B[J][K], C[I][J], C_golden[I][J];
 
   for (int i = 0; i < I; i++)
     for (int k = 0; k < K; k++) {
-      A[i][k] = k;
+      A[i][k] = rand() % 100;
     }
 
   for (int j = 0; j < J; j++)
     for (int k = 0; k < K; k++) {
-      B[j][k] = k;
+      B[j][k] = rand() % 100;
     }
 
 #pragma scop
@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
   int err = 0;
   for (int i = 0; i < I; i++)
     for (int j = 0; j < J; j++) {
-      if (fabs((float)C_golden[i][j] - (float)C[i][j]) > 0.001) err++;
+      if (abs(C_golden[i][j] - C[i][j]) > 0.001) err++;
     }
 
   if (err)

@@ -3,8 +3,8 @@
 #include "stdlib.h"
 
 typedef float data_t;
-#define O 16
-#define I 16
-#define R 8
-#define C 8
-#define K 3
+#define I 128
+#define J 128
+#define K 128
+#define L 128
+#define M 128

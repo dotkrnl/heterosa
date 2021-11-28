@@ -20,6 +20,7 @@ function(add_heterosa_target target_name)
     # * SIMD_INFO: Optional, path to the SIMD information file of the input kernel.
     # * CONFIG: Optional, path to the HeteroSA configuration file.
     # * SA_SIZE: Optional, configurations for the systolic array.
+    # * DATAPACK_SIZE: Optional, configurations for the data packing.
     # * HETEROSA: Optional, command to run the `heterosa` executable.
     # * HETEROSA_CC_PATH: Optional, directory of the `heterosa_cc` executable.
     #
@@ -31,7 +32,7 @@ function(add_heterosa_target target_name)
         HETEROSA
         ""
         "INPUT;OUTPUT;SIMD_INFO;CONFIG;HETEROSA;HETEROSA_CC_PATH"
-        "SA_SIZE"
+        "SA_SIZE;DATAPACK_SIZE"
         ${ARGN})
 
     if(NOT HETEROSA_INPUT)
@@ -89,8 +90,18 @@ function(add_heterosa_target target_name)
         set(SA_SIZE "${SA_SIZE}}")
         list(APPEND heterosa_cmd "${SA_SIZE}")
     endif()
+    if(HETEROSA_DATAPACK_SIZE)
+        list(APPEND heterosa_cmd --datapack-sizes)
+        set(DATAPACK_SIZE "{")
+        foreach(DATAPACK IN LISTS HETEROSA_DATAPACK_SIZE)
+            set(DATAPACK_SIZE "${DATAPACK_SIZE}kernel[]->${DATAPACK}\\;")
+        endforeach()
+        string(REGEX REPLACE "\\\\;$" "" DATAPACK_SIZE "${DATAPACK_SIZE}")
+        set(DATAPACK_SIZE "${DATAPACK_SIZE}}")
+        list(APPEND heterosa_cmd "${DATAPACK_SIZE}")
+    endif()
     list(APPEND heterosa_cmd ${HETEROSA_UNPARSED_ARGUMENTS})
-    list(APPEND heterosa_cmd --quiet)
+    #list(APPEND heterosa_cmd --quiet)
 
     add_custom_command(
         OUTPUT  ${HETEROSA_OUTPUT}

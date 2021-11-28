@@ -103,6 +103,13 @@ static void hls_open_files(struct hls_info *info, const char *input) {
   fprintf(info->top_gen_c, "#include <isl/printer.h>\n");
   fprintf(info->top_gen_c, "#include \"%s\"\n", name);
 
+  fprintf(info->top_gen_c,
+          "template <typename T1, typename T2> "
+          "inline T1 min(T1 x, T2 y) { return (x < T1(y)) ? x : T1(y); }\n");
+  fprintf(info->top_gen_c,
+          "template <typename T1, typename T2> "
+          "inline T1 max(T1 x, T2 y) { return (x > T1(y)) ? x : T1(y); }\n");
+
   fprintf(info->kernel_h, "#include <tapa.h>\n");
   fprintf(info->kernel_h, "\n");
 
@@ -258,7 +265,7 @@ static isl_stat print_data_types(struct autosa_hw_top_module *top,
           data_pack_factors, &n_factor, local->drain_group);
 
     for (int n = 0; n < n_factor; n++) {
-      if (data_pack_factors[n] != 1) {
+      if (data_pack_factors[n] > 1) {
         p = isl_printer_start_line(p);
         p = isl_printer_print_str(p, "typedef tapa::vec_t<");
         p = isl_printer_print_str(p, local->array->type);
