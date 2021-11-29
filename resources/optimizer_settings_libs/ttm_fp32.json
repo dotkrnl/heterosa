@@ -18,7 +18,7 @@
             "SIMD_vectorization": {
                 "mode": "random",
                 "n": 2,
-                "loop_limit": 4
+                "loop_limit": 8
             }
         },
         "pruning": {
@@ -35,7 +35,7 @@
             "latency_hiding": {
                 "enable": 1,
                 "reg_size": [
-                    32,
+                    64,
                     256
                 ]
             },
@@ -68,19 +68,16 @@
         "log": {
             "n_record": 10
         },
-        "resource_target": [
-            "BRAM18K",
-            "DSP"
-        ],
-        "time_out": -1,
-        "update_time_interval": 2,
+        "resource_target": ["BRAM18K", "DSP"],
+        "time_out": 3,
+        "update_time_interval": 2,        
         "pruning": {
             "random_start": {
                 "enable": 1,
                 "n_trial": 3,
                 "n_random": 3
             },
-            "resource": {
+            "resource": {                
                 "range": {
                     "FF": [
                         0.25,
@@ -92,11 +89,11 @@
                     ],
                     "DSP": [
                         0.6,
-                        0.75
+                        0.7
                     ],
                     "BRAM18K": [
-                        0.3,
-                        0.7
+                        0.1,
+                        0.5
                     ],
                     "URAM": [
                         0,
@@ -108,7 +105,7 @@
                 "enable": 1,
                 "PE_num": [
                     190,
-                    210
+                    200
                 ]
             },
             "array_part_L2": {
@@ -118,14 +115,14 @@
                 "enable": 1,
                 "reg_size": [
                     64,
-                    1280
+                    640
                 ]
             },
             "SIMD_vectorization": {
                 "enable": 1,
                 "PE_num": [
                     190,
-                    210
+                    200
                 ],
                 "PE_ratio": 3
             }

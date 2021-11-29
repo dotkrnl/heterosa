@@ -853,7 +853,7 @@ static __isl_give isl_schedule_node *add_io_ids_filter(
   int io_id = 0;
 
   core = isl_union_set_universe(isl_schedule_node_get_domain(node));
-  for (int i = n_io_ids + 1; i >= io_level; i--) {
+  for (int i = io_level + n_io_ids - 1; i >= io_level; i--) {
     node = autosa_tree_move_down_to_io_mark(node, core, i);
     node = isl_schedule_node_parent(node);
     if (isl_schedule_node_get_type(node) == isl_schedule_node_band) {
@@ -1921,7 +1921,7 @@ static __isl_give struct autosa_hw_module *generate_filter_buffer_io_module(
    * TODO: Offer options to enable the selection of which arrays to be double
    * buffered.
    */
-  if (gen->options->autosa->double_buffer) {
+  if (gen->options->autosa->double_buffer && kernel->array_part_w > 0) {
     if (group->local_array->array_type == AUTOSA_EXT_ARRAY && module->in) {
       module->double_buffer = 1;
     } else {

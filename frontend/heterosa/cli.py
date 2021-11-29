@@ -48,7 +48,9 @@ def main():
         f"{output_dir}/src/completed"
     )
     if not args.quiet or failed:
-        print("[AutoSA] Output:", process.stdout.decode("utf-8"), sep="\n")
+        print("[AutoSA] Output:")
+        print(process.stdout.decode("utf-8"))
+        print(process.stderr.decode("utf-8"))
     if failed:
         print("[AutoSA] Error: Exit abnormally!")
         sys.exit(process.returncode)

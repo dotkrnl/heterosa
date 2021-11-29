@@ -58,6 +58,8 @@ ISL_ARG_BOOL(struct autosa_options, double_buffer, 0, "double-buffer", 1,
 ISL_ARG_INT(
     struct autosa_options, double_buffer_style, 0, "double-buffer-style", "id",
     1, "change double-buffering logic coding style. 0: while loop 1: for loop")
+ISL_ARG_INT(struct autosa_options, fifo_depth, 0, "fifo-depth", "depth", 2,
+            "default FIFO depth")
 ISL_ARG_BOOL(struct autosa_options, hbm, 0, "hbm", 0, "use multi-port DRAM/HBM")
 ISL_ARG_INT(struct autosa_options, n_hbm_port, 0, "hbm-port-num", "num", 2,
             "default HBM port number")
@@ -101,6 +103,8 @@ ISL_ARG_USER_OPT_CHOICE(struct autosa_options, sa_type, 0, "sa-type", sa_type,
                         "systolic array type")
 ISL_ARG_STR(struct autosa_options, simd_info, 0, "simd-info", "info", NULL,
             "per kernel SIMD information")
+ISL_ARG_BOOL(struct autosa_options, simd_touch_space, 0, "simd-touch-space", 0,
+             "use space loops as SIMD vectorization loops")
 ISL_ARG_BOOL(struct autosa_options, two_level_buffer, 0, "two-level-buffer", 0,
              "enable two-level buffering in I/O modules")
 ISL_ARG_BOOL(struct autosa_options, t2s_tile, 0, "t2s-tile", 0,

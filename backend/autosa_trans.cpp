@@ -1457,27 +1457,15 @@ static __isl_give isl_schedule_node *autosa_latency_tile_band_loop(
   struct autosa_pe_opt_tile_data *data = (struct autosa_pe_opt_tile_data *)user;
   if (isl_schedule_node_get_type(node) != isl_schedule_node_band) return node;
 
-// Hack: For 2D GEMM, reverse the latency hiding order
-#define REVERSE_ORDER
-
   int n;
   isl_id *id;
   n = isl_schedule_node_band_n_member(node);
 
-#ifdef REVERSE_ORDER
-  for (int i = 0; i < n; i++)
-#else
-  for (int i = n - 1; i >= 0; i--)
-#endif
-  {
+  for (int i = n - 1; i >= 0; i--) {
     if (isl_schedule_node_band_member_get_pe_opt(node, i) ==
         autosa_loop_latency) {
-#ifdef REVERSE_ORDER
-      int loop_tile_size = data->tile_size[data->n_touched_loop];
-#else
       int loop_tile_size =
           data->tile_size[data->tile_len - data->n_touched_loop - 1];
-#endif
       (data->n_touched_loop)++;
       /* If latency hiding is applied on the space loops, we need to update
        * the SA dimensions.
@@ -1492,6 +1480,10 @@ static __isl_give isl_schedule_node *autosa_latency_tile_band_loop(
             touched_space_loop++;
         }
         data->sa->sa_dim[touched_space_loop] /= loop_tile_size;
+        if (data->sa->sa_dim[touched_space_loop] == 1) {
+          throw std::runtime_error(
+              "[AutoSA] Error: Array dimension as 1 is not supported!");
+        }
       }
 
       /* Skip loop tile size as 1 */
@@ -1756,6 +1748,7 @@ struct simd_vectorization_data {
   int *tile_size;
   char *buffer;
   int buffer_offset;
+  int has_space_candidate;
 };
 
 /* Internal struct used in is_stride_coalesced. */
@@ -1985,6 +1978,7 @@ static isl_schedule_node *detect_simd_vectorization_loop(
   isl_schedule_node *cur_node;
   int is_latency;
   int n_member;
+  int simd_touch_space = sa->options->autosa->simd_touch_space;
 
   /* If the currrent node is under the latency mark, return
    * as we don't use latency hiding loop as candidates.
@@ -1995,8 +1989,12 @@ static isl_schedule_node *detect_simd_vectorization_loop(
   if (isl_schedule_node_get_type(node) == isl_schedule_node_band) {
     n_member = isl_schedule_node_band_n_member(node);
     for (int i = 0; i < n_member; i++) {
-      /* We consider both space and time loops */
-      {
+      if (!simd_touch_space && isl_schedule_node_band_member_get_space_time(
+                                   node, i) != autosa_loop_time) {
+        /* We consider only time loops */
+        continue;
+      } else {
+        /* We consider both space and time loops */
         /* Two types of loops that we are interested in:
          * - Parallel loop.
          * - Reduction loop in the innermost loop band.
@@ -2096,6 +2094,9 @@ static isl_schedule_node *detect_simd_vectorization_loop(
                 "[AutoSA] -----------------------------------------------\n");
             node = isl_schedule_node_band_member_set_pe_opt(node, i,
                                                             autosa_loop_simd);
+            if (isl_schedule_node_band_member_get_space_time(node, i) ==
+                autosa_loop_space)
+              data->has_space_candidate = 1;
 
             if (score >= data->best_score) {
               data->best_score = score;
@@ -2247,6 +2248,25 @@ static __isl_give isl_schedule_node *autosa_simd_tile_loop(
           continue;
         }
         int tile_size = data->tile_size[data->loop_cnt];
+
+        /* If SIMD vectorization is applied on the space loops, we need to
+         * update the SA dimensions. */
+        if (isl_schedule_node_band_member_get_space_time(node, i) ==
+            autosa_loop_space) {
+          /* Figure out the dim position */
+          int touched_space_loop = 0;
+          for (int j = 0; j < i; j++) {
+            if (isl_schedule_node_band_member_get_space_time(node, j) ==
+                autosa_loop_space)
+              touched_space_loop++;
+          }
+          data->kernel->sa_dim[touched_space_loop] /= tile_size;
+          if (data->kernel->sa_dim[touched_space_loop] == 1) {
+            throw std::runtime_error(
+                "[AutoSA] Error: Array dimension as 1 is not supported!");
+          }
+        }
+
         /* Tile the loop */
         node = autosa_node_band_tile_loop(node, tile_size, i);
         /* Reset the candidate loop in the tile loop the pe_opt property to
@@ -2364,6 +2384,7 @@ isl_stat sa_simd_vectorization_optimize(struct autosa_kernel *sa, char *mode) {
   data.buffer = NULL;
   data.buffer_offset = 0;
   data.n_loops = n_loops;
+  data.has_space_candidate = 0;
   /* Load the SIMD information. */
   data.buffer = load_simd_info(sa);
   node = isl_schedule_node_map_descendant_bottom_up(
@@ -2430,11 +2451,13 @@ isl_stat sa_simd_vectorization_optimize(struct autosa_kernel *sa, char *mode) {
           cJSON *loop = cJSON_CreateNumber(data.legal[i]);
           cJSON_AddItemToArray(legal_json, loop);
         }
-        loops_json = cJSON_CreateArray();
-        cJSON_AddItemToObject(simd_json, "sa_dims", loops_json);
-        for (int i = 0; i < sa->n_sa_dim; i++) {
-          cJSON *loop = cJSON_CreateNumber(sa->sa_dim[i]);
-          cJSON_AddItemToArray(loops_json, loop);
+        if (data.has_space_candidate == 0) {
+          loops_json = cJSON_CreateArray();
+          cJSON_AddItemToObject(simd_json, "sa_dims", loops_json);
+          for (int i = 0; i < sa->n_sa_dim; i++) {
+            cJSON *loop = cJSON_CreateNumber(sa->sa_dim[i]);
+            cJSON_AddItemToArray(loops_json, loop);
+          }
         }
         p_str = isl_printer_to_str(sa->ctx);
         p_str = isl_printer_print_str(p_str, sa->options->autosa->output_dir);
@@ -2470,6 +2493,33 @@ isl_stat sa_simd_vectorization_optimize(struct autosa_kernel *sa, char *mode) {
                                                       &clear_pe_opt_prop, NULL);
   free(data.scores);
   sa->schedule = schedule;
+
+  /* Update the tuning config, dump out the sa dimensions. */
+  if (data.has_space_candidate) {
+    cJSON *tuning, *loops_json;
+    isl_printer *p_str;
+    char *tuning_path;
+    char *content;
+    FILE *fp;
+
+    tuning = cJSON_CreateObject();
+    loops_json = cJSON_CreateArray();
+    cJSON_AddItemToObject(tuning, "sa_dims", loops_json);
+    for (int i = 0; i < sa->n_sa_dim; i++) {
+      cJSON *loop = cJSON_CreateNumber(sa->sa_dim[i]);
+      cJSON_AddItemToArray(loops_json, loop);
+    }
+    p_str = isl_printer_to_str(sa->ctx);
+    p_str = isl_printer_print_str(p_str, sa->options->autosa->output_dir);
+    p_str = isl_printer_print_str(p_str, "/tuning.json");
+    tuning_path = isl_printer_get_str(p_str);
+    fp = fopen(tuning_path, "w");
+    content = cJSON_Print(tuning);
+    fprintf(fp, "%s", content);
+    cJSON_Delete(tuning);
+    free(tuning_path);
+    isl_printer_free(p_str);
+  }
 
   return isl_stat_ok;
 }

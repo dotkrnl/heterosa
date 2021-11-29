@@ -3056,7 +3056,8 @@ static void print_top_gen_host_code(struct autosa_prog *prog,
       p = isl_printer_print_str(p, "p = isl_printer_print_str(p, \"/* ");
       p = isl_printer_print_str(p, module->name);
       p = isl_printer_print_str(p, "_serialize fifo */ ");
-      p = print_fifo_type(p, group, module->data_pack_inter, NULL);
+      p = print_fifo_type(p, group, module->data_pack_inter, NULL,
+                          prog->scop->options->autosa->fifo_depth);
       p = isl_printer_print_str(p, " ");
       p = isl_printer_print_str(p, fifo_name);
       p = isl_printer_print_str(p, ";\");");
