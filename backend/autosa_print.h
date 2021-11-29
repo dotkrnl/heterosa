@@ -74,7 +74,7 @@ __isl_give isl_printer *print_host_serialize_arguments(
 /* FIFOs */
 __isl_give isl_printer *autosa_fifo_print_declaration_arguments(
     __isl_take isl_printer *p, struct autosa_array_ref_group *group, int n_lane,
-    const char *suffix, const char *direction);
+    const char *suffix, const char *direction, int fifo_depth);
 __isl_give isl_printer *autosa_fifo_print_call_argument(
     __isl_take isl_printer *p, struct autosa_array_ref_group *group,
     const char *suffix);
@@ -118,7 +118,8 @@ __isl_give isl_printer *autosa_kernel_print_host_serialize(
 
 __isl_give isl_printer *print_fifo_type(__isl_take isl_printer *p,
                                         struct autosa_array_ref_group *group,
-                                        int n_lane, const char *direction);
+                                        int n_lane, const char *direction,
+                                        int fifo_depth);
 __isl_give isl_printer *print_fifo_rw(__isl_take isl_printer *p,
                                       const char *fifo_name, int read);
 

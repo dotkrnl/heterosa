@@ -608,11 +608,12 @@ __isl_give isl_printer *print_host_serialize_arguments(
 }
 
 /* Print out
- * "hls::stream<[type]>"
+ * "tapa::<[i|o]>stream<[type]>"
  */
 __isl_give isl_printer *print_fifo_type(__isl_take isl_printer *p,
                                         struct autosa_array_ref_group *group,
-                                        int n_lane, const char *direction) {
+                                        int n_lane, const char *direction,
+                                        int fifo_depth) {
   struct autosa_array_info *array = group->array;
 
   p = isl_printer_print_str(p, "tapa::");
@@ -629,7 +630,7 @@ __isl_give isl_printer *print_fifo_type(__isl_take isl_printer *p,
   }
   if (!direction) {
     p = isl_printer_print_str(p, ", ");
-    p = isl_printer_print_int(p, 2);
+    p = isl_printer_print_int(p, fifo_depth);
   }
   p = isl_printer_print_str(p, ">");
 
@@ -638,8 +639,8 @@ __isl_give isl_printer *print_fifo_type(__isl_take isl_printer *p,
 
 __isl_give isl_printer *autosa_fifo_print_declaration_arguments(
     __isl_take isl_printer *p, struct autosa_array_ref_group *group, int n_lane,
-    const char *suffix, const char *direction) {
-  p = print_fifo_type(p, group, n_lane, direction);
+    const char *suffix, const char *direction, int fifo_depth) {
+  p = print_fifo_type(p, group, n_lane, direction, fifo_depth);
   p = isl_printer_print_str(p, " &");
   p = autosa_array_ref_group_print_fifo_name(group, p);
   if (suffix) {
@@ -738,6 +739,7 @@ __isl_give isl_printer *print_module_arguments(__isl_take isl_printer *p,
   int nparam;
   int n;
   const char *type;
+  int fifo_depth = prog->scop->options->autosa->fifo_depth;
 
   type = isl_options_get_ast_iterator_type(prog->ctx);
   /* Module identifiers */
@@ -863,9 +865,9 @@ __isl_give isl_printer *print_module_arguments(__isl_take isl_printer *p,
         }
       }
       if (types) {
-        p = autosa_fifo_print_declaration_arguments(p, module->io_groups[0],
-                                                    n_lane, "serialize",
-                                                    (module->in) ? "i" : "o");
+        p = autosa_fifo_print_declaration_arguments(
+            p, module->io_groups[0], n_lane, "serialize",
+            (module->in) ? "i" : "o", fifo_depth);
       } else {
         p = isl_printer_print_str(p, "/* fifo */");
         p = autosa_fifo_print_call_argument(p, module->io_groups[0],
@@ -968,8 +970,8 @@ __isl_give isl_printer *print_module_arguments(__isl_take isl_printer *p,
           }
         }
         if (types) {
-          p = autosa_fifo_print_declaration_arguments(p, module->io_groups[i],
-                                                      n_lane, "in", "i");
+          p = autosa_fifo_print_declaration_arguments(
+              p, module->io_groups[i], n_lane, "in", "i", fifo_depth);
         } else {
           p = isl_printer_print_str(p, "/* fifo */ ");
           p = autosa_fifo_print_call_argument(p, module->io_groups[i], "in");
@@ -986,8 +988,8 @@ __isl_give isl_printer *print_module_arguments(__isl_take isl_printer *p,
           }
         }
         if (types)
-          p = autosa_fifo_print_declaration_arguments(p, module->io_groups[i],
-                                                      n_lane, "out", "o");
+          p = autosa_fifo_print_declaration_arguments(
+              p, module->io_groups[i], n_lane, "out", "o", fifo_depth);
         else {
           p = isl_printer_print_str(p, "/* fifo */ ");
           p = autosa_fifo_print_call_argument(p, module->io_groups[i], "out");
@@ -997,7 +999,7 @@ __isl_give isl_printer *print_module_arguments(__isl_take isl_printer *p,
     }
   } else {
     for (int i = 0; i < module->n_io_group; i++) {
-      if (!module->to_mem && inter != 0) {
+      if (inter == 1 || (inter == -1 && !module->to_mem)) {
         if (!(!module->in && boundary)) {
           if (!first) {
             p = isl_printer_print_str(p, ", ");
@@ -1008,8 +1010,9 @@ __isl_give isl_printer *print_module_arguments(__isl_take isl_printer *p,
           }
           /* in */
           if (types)
-            p = autosa_fifo_print_declaration_arguments(
-                p, module->io_groups[i], module->data_pack_inter, "in", "i");
+            p = autosa_fifo_print_declaration_arguments(p, module->io_groups[i],
+                                                        module->data_pack_inter,
+                                                        "in", "i", fifo_depth);
           else {
             p = isl_printer_print_str(p, "/* fifo */ ");
             p = autosa_fifo_print_call_argument(p, module->io_groups[i], "in");
@@ -1027,8 +1030,9 @@ __isl_give isl_printer *print_module_arguments(__isl_take isl_printer *p,
             }
           }
           if (types)
-            p = autosa_fifo_print_declaration_arguments(
-                p, module->io_groups[i], module->data_pack_inter, "out", "o");
+            p = autosa_fifo_print_declaration_arguments(p, module->io_groups[i],
+                                                        module->data_pack_inter,
+                                                        "out", "o", fifo_depth);
           else {
             p = isl_printer_print_str(p, "/* fifo */ ");
             p = autosa_fifo_print_call_argument(p, module->io_groups[i], "out");
@@ -1051,7 +1055,8 @@ __isl_give isl_printer *print_module_arguments(__isl_take isl_printer *p,
               p, module->io_groups[i],
               (module->is_serialized && serialize) ? module->data_pack_inter
                                                    : module->data_pack_intra,
-              module->in ? "local_out" : "local_in", module->in ? "o" : "i");
+              module->in ? "local_out" : "local_in", module->in ? "o" : "i",
+              fifo_depth);
         } else {
           p = isl_printer_print_str(p, "/* fifo */ ");
           p = autosa_fifo_print_call_argument(
@@ -1125,6 +1130,7 @@ __isl_give isl_printer *print_pe_dummy_module_arguments(
   int n;
   const char *type;
   struct autosa_hw_module *module = pe_dummy_module->module;
+  int fifo_depth = prog->scop->options->autosa->fifo_depth;
 
   type = isl_options_get_ast_iterator_type(prog->ctx);
   /* module identifiers */
@@ -1207,7 +1213,7 @@ __isl_give isl_printer *print_pe_dummy_module_arguments(
   if (types) {
     p = autosa_fifo_print_declaration_arguments(
         p, group, n_lane, pe_dummy_module->in ? "in" : "out",
-        pe_dummy_module->in ? "i" : "o");
+        pe_dummy_module->in ? "i" : "o", fifo_depth);
   } else
     p = autosa_fifo_print_call_argument(p, group,
                                         pe_dummy_module->in ? "in" : "out");
@@ -1446,7 +1452,8 @@ static __isl_give isl_printer *print_fifo_decl_single(
   p = print_fifo_comment(p, module);
   p = isl_printer_print_str(p, " ");
   n_lane = get_io_group_n_lane(module, NULL, group);
-  p = print_fifo_type(p, group, n_lane, NULL);
+  p = print_fifo_type(p, group, n_lane, NULL,
+                      prog->scop->options->autosa->fifo_depth);
   p = isl_printer_print_str(p, " ");
   p = autosa_array_ref_group_print_fifo_name(group, p);
   p = isl_printer_print_str(p, "_");

@@ -1564,6 +1564,7 @@ isl_bool is_io_module_valid(__isl_keep isl_schedule_node *node,
 
   if (group->group_type == AUTOSA_PE_GROUP) return isl_bool_true;
   if (group->group_type == AUTOSA_DRAIN_GROUP && read) return isl_bool_false;
+  if (group->attached_drain_group) return isl_bool_true;
 
   /* External group */
   for (int i = 0; i < group->n_ref; i++) {
@@ -3479,6 +3480,7 @@ isl_stat sa_io_construct_optimize(struct autosa_kernel *kernel,
       if (local->drain_group && ext_group_cnt == 1) {
         local->io_groups[group_id]->attached_drain_group = local->drain_group;
         local->drain_group = NULL;
+        local->io_groups[group_id]->copy_out = 1;
         local->io_groups[group_id]->copy_in = 0;
         local->n_mem_ports = 1;
       }
@@ -3578,8 +3580,8 @@ isl_stat sa_io_construct_optimize(struct autosa_kernel *kernel,
       }
     }
 
-    local_array->n_lane = n_lane;
-    local_array->array->n_lane = n_lane;
+    local_array->n_lane = max(1, n_lane);
+    local_array->array->n_lane = max(1, n_lane);
   }
 
   isl_union_map_free(data.host_sched);
