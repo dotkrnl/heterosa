@@ -87,6 +87,8 @@ struct autosa_options {
   int fifo_depth;
   /* Touch space loops in the SIMD vectorization */
   int simd_touch_space;
+  /* Apply array contraction. */
+  int array_contraction;
 };
 
 struct ppcg_options {

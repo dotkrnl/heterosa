@@ -43,16 +43,18 @@ ISL_ARGS_END
 ISL_ARGS_START(struct autosa_options, autosa_options_args)
 ISL_ARG_BOOL(struct autosa_options, autosa, 0, "autosa", 1,
              "generate systolic arrays using AutoSA")
+ISL_ARG_BOOL(struct autosa_options, array_contraction, 0, "array-contraction",
+             1, "apply array contraction")
 ISL_ARG_STR(struct autosa_options, config, 0, "config", "config", NULL,
             "AutoSA configuration file")
 ISL_ARG_BOOL(struct autosa_options, credit_control, 0, "credit-control", 0,
              "enable credit control between different array partitions")
 ISL_ARG_BOOL(struct autosa_options, data_pack, 0, "data-pack", 1,
-             "enable data packing for data transfer")
-ISL_ARG_STR(struct autosa_options, data_pack_sizes, 0, "data-pack-sizes",
-            "sizes", NULL,
-            "data pack sizes upper bound at innermost, in-between, outermost "
-            "I/O level. [default: 8 32 64]")
+             "enable data packing")
+ISL_ARG_STR(
+    struct autosa_options, data_pack_sizes, 0, "data-pack-sizes", "sizes", NULL,
+    "data pack sizes upper bound (bytes) at innermost, intermediate, outermost "
+    "I/O level. [default: kernel[]->data_pack[8,32,64]]")
 ISL_ARG_BOOL(struct autosa_options, double_buffer, 0, "double-buffer", 1,
              "enable double-buffering for data transfer")
 ISL_ARG_INT(
@@ -62,7 +64,7 @@ ISL_ARG_INT(struct autosa_options, fifo_depth, 0, "fifo-depth", "depth", 2,
             "default FIFO depth")
 ISL_ARG_BOOL(struct autosa_options, hbm, 0, "hbm", 0, "use multi-port DRAM/HBM")
 ISL_ARG_INT(struct autosa_options, n_hbm_port, 0, "hbm-port-num", "num", 2,
-            "default HBM port number")
+            "default HBM port number per array")
 ISL_ARG_BOOL(struct autosa_options, hls, 0, "hls", 0, "generate HLS host")
 ISL_ARG_BOOL(struct autosa_options, host_serialize, 0, "host-serialize", 1,
              "serialize/deserialize the host data")
@@ -70,7 +72,7 @@ ISL_ARG_BOOL(struct autosa_options, insert_hls_dependence, 0,
              "insert-hls-dependence", 0,
              "insert HLS dependence pragma (alpha version)")
 ISL_ARG_INT(struct autosa_options, int_io_dir, 0, "int-io-dir", "dir", 0,
-            "set the default interior I/O direction. 0: [1,x] 1: [x,1]")
+            "set the default interior I/O direction (0: [1,x] 1: [x,1])")
 ISL_ARG_BOOL(struct autosa_options, io_module_embedding, 0,
              "io-module-embedding", 0,
              "embed the I/O modules inside PEs if possible")
@@ -120,7 +122,7 @@ ISL_ARGS_START(struct ppcg_options, ppcg_options_args)
 ISL_ARG_CHILD(struct ppcg_options, isl, "isl", &isl_options_args, "isl options")
 ISL_ARG_CHILD(struct ppcg_options, debug, NULL, &ppcg_debug_options_args,
               "debugging options")
-ISL_ARG_CHILD(struct ppcg_options, autosa, "AutoSA", &autosa_options_args,
+ISL_ARG_CHILD(struct ppcg_options, autosa, "autosa", &autosa_options_args,
               "AutoSA options")
 ISL_ARG_BOOL(struct ppcg_options, group_chains, 0, "group-chains", 1,
              "group chains of interdependent statements that are executed "
@@ -157,7 +159,7 @@ ISL_ARG_BOOL(struct ppcg_options, allow_gnu_extensions, 0,
              "allow-gnu-extensions", 1,
              "allow the use of GNU extensions in generated code")
 ISL_ARG_BOOL(struct ppcg_options, live_range_reordering, 0,
-             "live-range-reordering", 1,
+             "live-range-reordering", 0,
              "allow successive live ranges on the same memory element "
              "to be reordered")
 ISL_ARG_BOOL(struct ppcg_options, hybrid, 0, "hybrid", 0,

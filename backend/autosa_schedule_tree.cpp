@@ -2063,6 +2063,14 @@ int autosa_tree_node_is_kernel(__isl_keep isl_schedule_node *node) {
   return is_marked(node, "kernel");
 }
 
+int autosa_tree_node_is_mark(__isl_keep isl_schedule_node *node,
+                             const char *mark) {
+  if (mark == NULL)
+    return (isl_schedule_node_get_type(node) == isl_schedule_node_mark);
+
+  return is_marked(node, mark);
+}
+
 /* Insert a mark node with identifier "local" in front of "node".
  */
 static __isl_give isl_schedule_node *insert_local(

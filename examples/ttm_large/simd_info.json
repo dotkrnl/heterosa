@@ -1,5 +1,7 @@
 {
   "kernel5": {
-    "reduction": ["y"]
+    "reduction": [
+      "y"
+    ]
   }
 }

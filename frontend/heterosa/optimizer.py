@@ -932,7 +932,7 @@ def synth_train_samples_single_job(config, job_id):
 
     """
     config['logger'] = logging.getLogger('AutoSA-Optimizer')
-    autosa_prj_path = os.environ['AUTOSA_PATH']
+    autosa_prj_path = os.environ['AUTOSA_ROOT']
     work_dir = f'{config["work_dir"]}/job{job_id}'
     kernels = os.listdir(work_dir)
     for kernel in kernels:
@@ -1554,8 +1554,8 @@ def init_config(setting, verbose, hw_info, cmd, training, search, tmp_dir):
         config['hw_info'] = json.load(f)
     config['cmds'] = [cmd]
     config['cmds'].append(
-        f'--AutoSA-config={config["work_dir"]}/autosa_config.json')
-    config['cmds'].append(f'--AutoSA-output-dir={config["work_dir"]}/output')
+        f'--autosa-config={config["work_dir"]}/autosa_config.json')
+    config['cmds'].append(f'--autosa-output-dir={config["work_dir"]}/output')
     config['cmds'].append('')
     config['sa_sizes'] = []
     # Look up if sa_sizes are pre-set in the cmd
