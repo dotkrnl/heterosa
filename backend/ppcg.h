@@ -162,6 +162,15 @@
     p_debug = isl_printer_free(p_debug);                          \
   }
 
+#define DBGUPA(os, upa, ctx)                                    \
+  {                                                             \
+    printf("%s(%d) Print union_pw_aff.\n", __FILE__, __LINE__); \
+    isl_printer *p_debug = isl_printer_to_file(ctx, os);        \
+    p_debug = isl_printer_print_union_pw_aff(p_debug, upa);     \
+    p_debug = isl_printer_print_str(p_debug, "\n");             \
+    p_debug = isl_printer_free(p_debug);                        \
+  }
+
 #ifdef __cplusplus
 extern "C" {
 #endif

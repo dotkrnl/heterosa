@@ -30,6 +30,8 @@ __isl_give isl_schedule_node *autosa_tree_move_down_to_io_mark(
     int io_level);
 
 int autosa_tree_node_is_kernel(__isl_keep isl_schedule_node *node);
+int autosa_tree_node_is_mark(__isl_keep isl_schedule_node *node,
+                             const char *mark);
 
 __isl_give isl_schedule_node *autosa_tree_insert_local_before_array(
     __isl_take isl_schedule_node *node);

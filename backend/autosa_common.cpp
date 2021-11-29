@@ -1624,6 +1624,25 @@ int *read_default_hbm_tile_sizes(struct autosa_kernel *sa, int tile_len) {
   return tile_size;
 }
 
+/* Extract user specified data pack sizes for array "name".
+ */
+int *read_data_pack_sizes_array(__isl_keep isl_union_map *sizes, char *name) {
+  isl_set *size;
+  int *data_pack_sizes;
+
+  data_pack_sizes = (int *)malloc(3 * sizeof(int));
+  size = extract_sa_sizes(sizes, name);
+  if (isl_set_dim(size, isl_dim_set) != 3) {
+    isl_set_free(size);
+    return NULL;
+  }
+  if (read_sa_sizes_from_set(size, data_pack_sizes, 3) < 0) goto error;
+
+  return data_pack_sizes;
+error:
+  return NULL;
+}
+
 /* Extract user specified data pack sizes from the "data_pack_sizes" command
  * line option, defaulting to 8, 32, 64, correponding to the upper bounds of
  * data pack factors at the innermost, in-between, and outermost I/O module
@@ -2253,7 +2272,7 @@ int extract_memory_type(struct autosa_hw_module *module,
     if (module->type == IO_MODULE && module->level == 1)
       use_memory = 1;
     else {
-      if (var->n_lane == 1 && var_size <= 32)
+      if (var->n_lane == 1 && var_size <= 8)
         use_memory = 0;
       else
         use_memory = 2;

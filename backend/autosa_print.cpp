@@ -13,11 +13,15 @@ const char *vector_index[] = {"0", "1", "2", "3", "4", "5", "6", "7",
 /* Print the call of an array argument.
  */
 __isl_give isl_printer *autosa_array_info_print_call_argument(
-    __isl_take isl_printer *p, struct autosa_array_info *array, int n_ref) {
+    __isl_take isl_printer *p, struct autosa_array_info *array, int n_ref,
+    const char *prefix) {
   if (autosa_array_is_read_only_scalar(array))
     return isl_printer_print_str(p, array->name);
 
-  p = isl_printer_print_str(p, "buffer_");
+  if (strlen(prefix) > 0) {
+    p = isl_printer_print_str(p, prefix);
+    p = isl_printer_print_str(p, "_");
+  }
   p = isl_printer_print_str(p, array->name);
   if (n_ref >= 0) {
     auto ref_port_map = array->local_array->group_ref_mem_port_map.at(n_ref);
@@ -206,6 +210,7 @@ static __isl_give isl_printer *print_non_linearized_declaration_argument(
     p = isl_printer_print_str(p, array->name);
     p = isl_printer_print_str(p, "_t");
     p = isl_printer_print_int(p, n_lane);
+    p = isl_printer_print_str(p, " ");
 
     p = isl_printer_print_ast_expr(p, array->bound_expr);  // TODO
   }
@@ -298,7 +303,8 @@ __isl_give isl_printer *print_kernel_arguments(__isl_take isl_printer *p,
         p = autosa_array_info_print_declaration_argument(p, local_array->array,
                                                          n_lane, NULL, -1);
       else {
-        p = autosa_array_info_print_call_argument(p, local_array->array, 0);
+        p = autosa_array_info_print_call_argument(p, local_array->array, 0,
+                                                  "buffer");
         if (n_lane > 1) {
           p = isl_printer_print_str(p, ".vectorized<");
           p = isl_printer_print_int(p, n_lane);
@@ -315,7 +321,8 @@ __isl_give isl_printer *print_kernel_arguments(__isl_take isl_printer *p,
           p = autosa_array_info_print_declaration_argument(
               p, local_array->array, n_lane, NULL, j);
         else {
-          p = autosa_array_info_print_call_argument(p, local_array->array, j);
+          p = autosa_array_info_print_call_argument(p, local_array->array, j,
+                                                    "buffer");
           if (n_lane > 1) {
             p = isl_printer_print_str(p, ".vectorized<");
             p = isl_printer_print_int(p, n_lane);
@@ -837,7 +844,7 @@ __isl_give isl_printer *print_module_arguments(__isl_take isl_printer *p,
       struct autosa_io_buffer *io_buffer =
           module->io_groups[0]->io_buffers[module->io_groups[0]->io_level - 1];
       int n_lane = (module->is_serialized) ? module->data_pack_serialize
-                                           : module->data_pack_inter;
+                                           : io_buffer->n_lane;
       if (!first) {
         p = isl_printer_print_str(p, ", ");
         if (!types) {
@@ -897,7 +904,8 @@ __isl_give isl_printer *print_module_arguments(__isl_take isl_printer *p,
                                                            1, NULL, -1);
         else {
           p = isl_printer_print_str(p, "/* scalar */ ");
-          p = autosa_array_info_print_call_argument(p, &prog->array[i], -1);
+          p = autosa_array_info_print_call_argument(p, &prog->array[i], -1,
+                                                    "buffer");
         }
         first = 0;
       }
@@ -959,6 +967,7 @@ __isl_give isl_printer *print_module_arguments(__isl_take isl_printer *p,
   if (module->type == PE_MODULE) {
     for (int i = 0; i < module->n_io_group; i++) {
       struct autosa_array_ref_group *group = module->io_groups[i];
+      if (!(group->copy_in || group->copy_out)) continue;
       int n_lane = get_io_group_n_lane(module, NULL, group);
       if (module->io_groups[i]->pe_io_dir == IO_IN ||
           module->io_groups[i]->pe_io_dir == IO_INOUT) {
@@ -3370,6 +3379,7 @@ __isl_give isl_printer *autosa_kernel_print_io_dram(
   struct autosa_hw_module *module = stmt->u.i.module;
   char *fifo_name;
   int n_lane = stmt->u.i.data_pack;
+  int nxt_n_lane = stmt->u.i.nxt_data_pack;
   isl_ctx *ctx = isl_printer_get_ctx(p);
   int buf = stmt->u.i.buf;
   isl_ast_expr *local_index_packed;
@@ -3394,12 +3404,12 @@ __isl_give isl_printer *autosa_kernel_print_io_dram(
 
   /* Declare the fifo data variable. */
   p = isl_printer_start_line(p);
-  if (n_lane == 1) {
+  if (nxt_n_lane == 1) {
     p = isl_printer_print_str(p, stmt->u.i.array->type);
   } else {
     p = isl_printer_print_str(p, stmt->u.i.array->name);
     p = isl_printer_print_str(p, "_t");
-    p = isl_printer_print_int(p, n_lane);
+    p = isl_printer_print_int(p, nxt_n_lane);
   }
   p = isl_printer_print_str(p, " fifo_data;");
   p = isl_printer_end_line(p);

@@ -1041,6 +1041,7 @@ int *read_simd_tile_sizes(struct autosa_kernel *kernel, int tile_len);
 int read_space_time_kernel_id(__isl_keep isl_union_map *sizes);
 int *read_array_part_L2_tile_sizes(struct autosa_kernel *kernel, int tile_len);
 int *read_data_pack_sizes(__isl_keep isl_union_map *sizes, int tile_len);
+int *read_data_pack_sizes_array(__isl_keep isl_union_map *sizes, char *name);
 
 /* AutoSA latency and resource estimation */
 isl_stat sa_extract_loop_info(struct autosa_gen *gen,

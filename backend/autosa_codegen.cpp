@@ -975,14 +975,14 @@ static __isl_give isl_printer *print_io_trans_stmt_prefix(
 
 static __isl_give isl_printer *print_trans_stmt_coalesce(
     __isl_take isl_printer *p, __isl_keep isl_schedule_node *node,
-    struct autosa_io_buffer *buf, int *coalesce_bound) {
+    struct autosa_io_buffer *buf, int *coalesce_bound, int n_lane) {
   int coalesce_depth;
   isl_val *coalesce_bound_val;
 
   coalesce_depth =
       isl_schedule_node_get_schedule_depth(node) + buf->tile->n - 1;
   coalesce_bound_val = buf->tile->bound[buf->tile->n - 1].size;
-  *coalesce_bound = isl_val_get_num_si(coalesce_bound_val) / buf->n_lane;
+  *coalesce_bound = isl_val_get_num_si(coalesce_bound_val) / n_lane;
   if (*coalesce_bound <= 1) coalesce_depth = -1;
 
   p = isl_printer_print_str(p, ".");
@@ -1226,7 +1226,8 @@ static __isl_give isl_schedule_node *insert_io_stmts_tile(
   p = isl_printer_print_str(p, ".");
   p = isl_printer_print_int(p, nxt_data_pack);
 
-  p = print_trans_stmt_coalesce(p, node, copy_buffer, &coalesce_bound);
+  p = print_trans_stmt_coalesce(p, node, copy_buffer, &coalesce_bound,
+                                nxt_data_pack);
   module->coalesce_bound = coalesce_bound;
 
   stmt_name = isl_printer_get_str(p);
@@ -1237,7 +1238,7 @@ static __isl_give isl_schedule_node *insert_io_stmts_tile(
                        kernel->options->autosa->insert_hls_dependence;
 
   node = add_io_copies_stmt_tile(
-      kernel, group, node, local_buffer ? local_buffer->tile : NULL,
+      kernel, group, node, local_buffer->tile ? local_buffer->tile : NULL,
       copy_buffer->tile, nxt_data_pack, read, stmt_name, read ? 1 : 0,
       is_buffer & 0, insert_hls_dep, module->is_serialized);
 
@@ -2613,18 +2614,19 @@ static isl_stat generate_default_io_module_schedule(
        * downstream I/O modules.
        */
       if (buf->tile) {
-        module->data_pack_inter = buf->n_lane;
+        module->data_pack_inter = group->io_buffers[io_level - 1]->n_lane;
         module->data_pack_intra = buf->n_lane;
 
         node = autosa_tree_move_down_to_depth(node, buf->tile->depth,
                                               kernel->core);
         p = isl_printer_to_str(ctx);
-        p = print_io_trans_stmt_prefix(p, read, module->to_mem,
-                                       gen->options->autosa->host_serialize,
-                                       boundary, 0, NULL, !read, read,
-                                       is_buffer, fifo_suffix, buf->n_lane);
-        node = insert_io_stmts_tile(node, buf->n_lane, p, kernel, group, NULL,
-                                    buf, read, is_buffer, module, 1);
+        p = print_io_trans_stmt_prefix(
+            p, read, module->to_mem, gen->options->autosa->host_serialize,
+            boundary, 0, NULL, !read, read, is_buffer, fifo_suffix,
+            module->data_pack_inter);
+        node = insert_io_stmts_tile(node, module->data_pack_intra, p, kernel,
+                                    group, group->io_buffers[io_level - 1], buf,
+                                    read, is_buffer, module, 1);
       } else {
         module->data_pack_inter = group->n_lane;
         module->data_pack_intra = group->n_lane;
@@ -2746,7 +2748,8 @@ static int update_serialize_data_pack(struct autosa_gen *gen,
 
   sizes = extract_sizes_from_str(gen->ctx,
                                  module->options->autosa->data_pack_sizes);
-  data_pack_ubs = read_data_pack_sizes(sizes, 3);
+  data_pack_ubs =
+      read_data_pack_sizes_array(sizes, module->io_groups[0]->array->name);
   if (data_pack_ubs) dram_limit = data_pack_ubs[2];
   free(data_pack_ubs);
   isl_union_map_free(sizes);
@@ -7239,6 +7242,8 @@ static __isl_give isl_ast_node *create_io_leaf(
   if (is_trans_dram) {
     is_serialize = !prefixcmp(type, "in_trans_dram_serialize") ||
                    !prefixcmp(type, "out_trans_dram_serialize");
+  } else {
+    is_serialize = 0;
   }
 
   stmt->u.i.simd_depth = pair->simd_depth;
