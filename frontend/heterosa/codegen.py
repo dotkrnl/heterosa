@@ -207,7 +207,12 @@ def index_simplify(matchobj):
     expr = sympy.simplify(expr)
     new_str_expr = sympy.printing.ccode(expr)
 
-    if "floor" in new_str_expr or "ceil" in new_str_expr or ".0" in new_str_expr:
+    if (
+        "fmod" in new_str_expr
+        or "floor" in new_str_expr
+        or "ceil" in new_str_expr
+        or ".0" in new_str_expr
+    ):
         return str_expr
     else:
         return "[" + new_str_expr + "]"
@@ -243,7 +248,7 @@ def simplify_expressions(lines):
     # Simplify mod expressions
     for pos in range(code_len):
         line = lines[pos]
-        line = re.sub(r"\((.+?)\) %", mod_simplify, line)
+        line = re.sub(r"\(([^[]]+?)\) %", mod_simplify, line)
         lines[pos] = line
 
     return lines

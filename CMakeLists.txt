@@ -8,6 +8,9 @@ set(CPACK_PACKAGE_VERSION_MINOR 0)
 set(CPACK_PACKAGE_VERSION_PATCH 20211125.1)
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "AutoSA fork targeting TAPA")
 
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+
 add_subdirectory(backend)
 enable_testing()
 add_subdirectory(examples)

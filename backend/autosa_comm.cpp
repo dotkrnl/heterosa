@@ -668,7 +668,6 @@ static isl_stat compute_group_bounds_core_pe(
       /* Map the domain to the outer scheduling dimensions */
       acc = local_access_pe(group, access, data);
     }
-    if (contract_data.prefix) isl_union_map_free(contract_data.prefix);
 
     /* Collect the shift and scale factors of the tile. */
     ok = can_tile(acc, group->local_tile);
