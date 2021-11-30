@@ -2901,6 +2901,13 @@ static __isl_give isl_schedule_node *compute_and_comm_optimize(
       cJSON_Delete(tuning);
       exit(0);
     } else {
+      if (num_sa <= kernel_id) {
+        printf(
+            "[AutoSA] Error: The user specified systolic array id is %d, "
+            "but only %d systolic array designs are generated.\n",
+            kernel_id, num_sa);
+        exit(-1);
+      }
       kernel = sa_candidates_manual_pick(sa_candidates, num_sa, kernel_id);
     }
   }

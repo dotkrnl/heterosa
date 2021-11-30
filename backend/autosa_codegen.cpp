@@ -1238,7 +1238,8 @@ static __isl_give isl_schedule_node *insert_io_stmts_tile(
                        kernel->options->autosa->insert_hls_dependence;
 
   node = add_io_copies_stmt_tile(
-      kernel, group, node, local_buffer->tile ? local_buffer->tile : NULL,
+      kernel, group, node,
+      (local_buffer && local_buffer->tile) ? local_buffer->tile : NULL,
       copy_buffer->tile, nxt_data_pack, read, stmt_name, read ? 1 : 0,
       is_buffer & 0, insert_hls_dep, module->is_serialized);
 

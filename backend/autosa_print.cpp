@@ -967,7 +967,6 @@ __isl_give isl_printer *print_module_arguments(__isl_take isl_printer *p,
   if (module->type == PE_MODULE) {
     for (int i = 0; i < module->n_io_group; i++) {
       struct autosa_array_ref_group *group = module->io_groups[i];
-      if (!(group->copy_in || group->copy_out)) continue;
       int n_lane = get_io_group_n_lane(module, NULL, group);
       if (module->io_groups[i]->pe_io_dir == IO_IN ||
           module->io_groups[i]->pe_io_dir == IO_INOUT) {
@@ -1008,7 +1007,7 @@ __isl_give isl_printer *print_module_arguments(__isl_take isl_printer *p,
     }
   } else {
     for (int i = 0; i < module->n_io_group; i++) {
-      if (inter == 1 || (inter == -1 && !module->to_mem)) {
+      if (!module->to_mem && (inter == 1 || inter == -1)) {
         if (!(!module->in && boundary)) {
           if (!first) {
             p = isl_printer_print_str(p, ", ");
@@ -3430,6 +3429,16 @@ __isl_give isl_printer *autosa_kernel_print_io_dram(
       p = print_fifo_rw(p, serialize_fifo_name, 1);
     } else {
       p = io_stmt_print_global_index(p, stmt, stmt->u.i.serialize);
+      if (n_lane != nxt_n_lane) {
+        p = isl_printer_print_str(p, "[(");
+        auto index = isl_ast_expr_copy(stmt->u.i.index);
+        index = isl_ast_expr_get_op_arg(index, 1);
+        index = isl_ast_expr_get_op_arg(index, 0);
+        p = isl_printer_print_ast_expr(p, index);
+        p = isl_printer_print_str(p, ") % ");
+        p = isl_printer_print_int(p, n_lane / nxt_n_lane);
+        p = isl_printer_print_str(p, "]");
+      }
     }
     p = isl_printer_print_str(p, ";");
     p = isl_printer_end_line(p);
@@ -3483,7 +3492,19 @@ __isl_give isl_printer *autosa_kernel_print_io_dram(
       free(serialize_fifo_name);
     } else {
       p = io_stmt_print_global_index(p, stmt, stmt->u.i.serialize);
-      p = isl_printer_print_str(p, " = fifo_data;");
+      p = isl_printer_print_str(p, " = ");
+      if (n_lane != nxt_n_lane) {
+        p = isl_printer_print_str(p, "tapa::cat(");
+        p = isl_printer_print_str(p, "tapa::truncated<");
+        p = isl_printer_print_int(p, nxt_n_lane);
+        p = isl_printer_print_str(p, ",");
+        p = isl_printer_print_int(p, n_lane);
+        p = isl_printer_print_str(p, ">(");
+        p = io_stmt_print_global_index(p, stmt, stmt->u.i.serialize);
+        p = isl_printer_print_str(p, "), fifo_data);");
+      } else {
+        p = isl_printer_print_str(p, "fifo_data;");
+      }
     }
     p = isl_printer_end_line(p);
   }

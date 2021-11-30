@@ -53,6 +53,7 @@ def main():
         print(process.stderr.decode("utf-8"))
     if failed:
         print("[AutoSA] Error: Exit abnormally!")
+        print("[AutoSA] Command: ", " ".join(argv))
         sys.exit(process.returncode)
     os.remove(f"{output_dir}/src/completed")
 

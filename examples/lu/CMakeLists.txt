@@ -9,6 +9,7 @@ add_heterosa_target(
     --use-cplusplus-template
     --double-buffer-style=1 --no-reschedule
     --int-io-dir=1 --no-data-pack
+    --live-range-reordering
 )
 
 add_dependencies(lu-tapa heterosa_cc)
