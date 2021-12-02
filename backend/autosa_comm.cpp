@@ -634,6 +634,7 @@ static isl_stat compute_group_bounds_core_pe(
     struct check_contraction_data contract_data;
     isl_schedule_node *node;
     contract_data.legal = false;
+    contract_data.prefix = NULL;
 
     /* Create a tile. */
     group->local_tile = autosa_array_tile_create(ctx, group->array->n_index);
@@ -644,7 +645,6 @@ static isl_stat compute_group_bounds_core_pe(
       contract_data.group = group;
       contract_data.kernel = kernel;
       contract_data.legal = true;
-      contract_data.prefix = NULL;
       contract_data.prefix_upma = NULL;
       contract_data.depth = -1;
       node = isl_schedule_get_root(kernel->schedule);
@@ -668,6 +668,7 @@ static isl_stat compute_group_bounds_core_pe(
       /* Map the domain to the outer scheduling dimensions */
       acc = local_access_pe(group, access, data);
     }
+    if (contract_data.prefix) isl_union_map_free(contract_data.prefix);
 
     /* Collect the shift and scale factors of the tile. */
     ok = can_tile(acc, group->local_tile);
@@ -1409,6 +1410,7 @@ static __isl_give isl_schedule_node *hbm_optimize(
     // bound. This is due to the reason that we can't handle loop with bound one
     // since such loop will be degenerated. Fix it in the future.
     free(tile_size);
+    free(ubs);
     isl_val_free(val);
     printf(
         "[AutoSA] HBM optimization failed! Please try to use a smaller HBM "

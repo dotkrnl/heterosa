@@ -3431,8 +3431,7 @@ __isl_give isl_printer *autosa_kernel_print_io_dram(
       p = io_stmt_print_global_index(p, stmt, stmt->u.i.serialize);
       if (n_lane != nxt_n_lane) {
         p = isl_printer_print_str(p, "[(");
-        auto index = isl_ast_expr_copy(stmt->u.i.index);
-        index = isl_ast_expr_get_op_arg(index, 1);
+        auto index = isl_ast_expr_get_op_arg(stmt->u.i.index, 1);
         index = isl_ast_expr_get_op_arg(index, 0);
         p = isl_printer_print_ast_expr(p, index);
         p = isl_printer_print_str(p, ") % ");
