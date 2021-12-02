@@ -2539,7 +2539,7 @@ __isl_give isl_printer *autosa_print_reduce_data_pack(
   }
   p = isl_printer_end_line(p);
 
-  /* assign the fifo_data and buf_data_split[split_i] into vars. */
+  /* assign the fifo_data and buf_data_split[split_idx] into vars. */
   for (int i = 0; i < data_pack_in; i++) {
     p = isl_printer_start_line(p);
     p = isl_printer_print_str(p, "uin_");
@@ -2557,7 +2557,7 @@ __isl_give isl_printer *autosa_print_reduce_data_pack(
     p = isl_printer_start_line(p);
     p = isl_printer_print_str(p, "uout_");
     p = isl_printer_print_int(p, i);
-    p = isl_printer_print_str(p, " = data_split[split_idx]");
+    p = isl_printer_print_str(p, " = buf_data_split[split_idx]");
     if (data_pack_in > 1) {
       p = isl_printer_print_str(p, "[");
       p = isl_printer_print_int(p, i);
@@ -2584,7 +2584,7 @@ __isl_give isl_printer *autosa_print_reduce_data_pack(
   /* re-assign the reduced values to the buf_data_split[i]. */
   for (int i = data_pack_in - 1; i >= 0; i--) {
     p = isl_printer_start_line(p);
-    p = isl_printer_print_str(p, "data_split[split_idx]");
+    p = isl_printer_print_str(p, "buf_data_split[split_idx]");
     if (data_pack_in > 1) {
       p = isl_printer_print_str(p, ".set(");
       p = isl_printer_print_int(p, i);
@@ -2631,7 +2631,7 @@ __isl_give isl_printer *autosa_print_reduce_default(
   }
   p = isl_printer_end_line(p);
 
-  /* assign the fifo_data and buf_data_split[split_i] into vars. */
+  /* assign the fifo_data and buf_data_split[split_idx] into vars. */
   for (int i = 0; i < data_pack; i++) {
     p = isl_printer_start_line(p);
     p = isl_printer_print_str(p, "uin_");
@@ -3047,7 +3047,7 @@ static __isl_give isl_printer *autosa_kernel_print_io_transfer_data_pack(
     p = print_str_new_line(p, "}");
   }
 
-  /* split_i = ... */
+  /* split_idx = ... */
   expr = isl_ast_expr_copy(stmt->u.i.local_index);
   n_arg = isl_ast_expr_op_get_n_arg(expr);
   op = isl_ast_expr_op_get_arg(expr, n_arg - 1);
@@ -3055,7 +3055,7 @@ static __isl_give isl_printer *autosa_kernel_print_io_transfer_data_pack(
   val = isl_val_int_from_si(ctx, nxt_n_lane);
   op = isl_ast_expr_div(op, isl_ast_expr_from_val(val));
   p = isl_printer_start_line(p);
-  p = isl_printer_print_str(p, "int split_i = (");
+  p = isl_printer_print_str(p, "int split_idx = (");
   p = isl_printer_print_ast_expr(p, op);
   p = isl_printer_print_str(p, ") % ");
   p = isl_printer_print_int(p, r);
@@ -3080,7 +3080,7 @@ static __isl_give isl_printer *autosa_kernel_print_io_transfer_data_pack(
                                         group);  // TODO
     } else {
       p = isl_printer_start_line(p);
-      p = isl_printer_print_str(p, "buf_data_split[split_i] ");
+      p = isl_printer_print_str(p, "buf_data_split[split_idx] ");
       if (stmt->u.i.reduce) {
         p = isl_printer_print_str(p, stmt->u.i.reduce_op);
       }
@@ -3172,7 +3172,7 @@ static __isl_give isl_printer *autosa_kernel_print_io_transfer_data_pack(
     /* fifo_data = Reinterpret<>(buf_data_split[...]); */
     p = isl_printer_start_line(p);
     p = isl_printer_print_str(p, "fifo_data = ");
-    p = isl_printer_print_str(p, "buf_data_split[split_i]");
+    p = isl_printer_print_str(p, "buf_data_split[split_idx]");
     p = isl_printer_print_str(p, ";");
     p = isl_printer_end_line(p);
 
