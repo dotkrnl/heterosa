@@ -779,8 +779,8 @@ static struct autosa_kernel *autosa_kernel_create_local_arrays(
   if (!kernel) return NULL;
 
   ctx = isl_set_get_ctx(prog->context);
-  kernel->array =
-      isl_calloc_array(ctx, struct autosa_local_array_info, prog->n_array);
+  kernel->array = new autosa_local_array_info[prog->n_array];
+  memset(kernel->array, 0, prog->n_array * sizeof(autosa_local_array_info));
   if (!kernel->array) return (struct autosa_kernel *)autosa_kernel_free(kernel);
   kernel->n_array = prog->n_array;
 

@@ -53,7 +53,7 @@ void *autosa_kernel_free(struct autosa_kernel *kernel) {
 
     isl_pw_qpolynomial_free(array->serialize_bound);
   }
-  if (kernel->array) free(kernel->array);
+  if (kernel->array) delete[] kernel->array;
 
   for (int i = 0; i < kernel->n_var; i++) {
     free(kernel->var[i].name);
@@ -1634,6 +1634,7 @@ int *read_data_pack_sizes_array(__isl_keep isl_union_map *sizes, char *name) {
   size = extract_sa_sizes(sizes, name);
   if (isl_set_dim(size, isl_dim_set) != 3) {
     isl_set_free(size);
+    free(data_pack_sizes);
     return NULL;
   }
   if (read_sa_sizes_from_set(size, data_pack_sizes, 3) < 0) goto error;
