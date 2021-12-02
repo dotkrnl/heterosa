@@ -1946,15 +1946,12 @@ static __isl_give struct autosa_hw_module *generate_filter_buffer_io_module(
     double_buffer_assignment = extract_sizes_from_str(
         kernel->ctx, gen->options->autosa->double_buffer_assignment);
     if (!double_buffer_assignment) {
-      /* Use the default strategy.
-       * Only external array is set to double buffer. */
-      if (group->local_array->array_type == AUTOSA_EXT_ARRAY && module->in) {
-        module->double_buffer = 1;
+      /* Use the default strategy:
+       * Set all the modules to double buffer except the drain module. */
+      if (group->group_type == AUTOSA_DRAIN_GROUP) {
+        module->double_buffer = 0;
       } else {
-        if (gen->options->autosa->local_reduce)
-          module->double_buffer = 1;
-        else
-          module->double_buffer = 0;
+        module->double_buffer = 1;
       }
     } else {
       isl_set *tmp;
@@ -2886,7 +2883,7 @@ static __isl_give struct autosa_hw_module **sa_io_module_gen(
 
       /* Since we perform I/O clustering automatically, all the I/O modules
        * except the outermost level will be in the filter mode:
-       * which means that they will pass data to downstreaming modules
+       * which means that they will pass data to downstream modules
        * and filter out the data that they need for the lower-level modules
        * they are connected to.
        */
@@ -2898,28 +2895,14 @@ static __isl_give struct autosa_hw_module **sa_io_module_gen(
       } else
         is_filter = 1;
 
-      if (group->group_type == AUTOSA_DRAIN_GROUP) {
-        if (i == innermost)
-          is_buffer = 1;
-        else
-          is_buffer = 0;
-      } else if (group->group_type == AUTOSA_IO_GROUP) {
-        if (group->local_array->array_type == AUTOSA_INT_ARRAY) {
-          if (group->io_type == AUTOSA_EXT_IO) {
-            if (i == innermost)
-              is_buffer = 1;
-            else
-              is_buffer = 0;
-          } else if (group->io_type == AUTOSA_INT_IO) {
-            is_buffer = 0;
-          }
-        } else if (group->local_array->array_type == AUTOSA_EXT_ARRAY) {
-          if (i == innermost)
-            is_buffer = 1;
-          else
-            is_buffer = 0;
-        }
-      }
+      /* All the innermost modules will be buffered to isolate the computation
+       * and data communication. Otherwise, possible data hazards might cause
+       * the design to stuck.
+       */
+      if (i == innermost)
+        is_buffer = 1;
+      else
+        is_buffer = 0;
 
       if (gen->options->autosa->two_level_buffer) {
         /* When two-level buffering is enabled,
@@ -3005,21 +2988,10 @@ static __isl_give struct autosa_hw_module **sa_io_module_gen(
         is_filter = 0;
       else
         is_filter = 1;
-      if (group->group_type == AUTOSA_DRAIN_GROUP) {
-        if (i == innermost)
-          is_buffer = 1;
-        else
-          is_buffer = 0;
-      } else if (group->group_type == AUTOSA_IO_GROUP) {
-        if (group->io_type == AUTOSA_INT_IO)
-          is_buffer = 0;
-        else {
-          if (i == innermost)
-            is_buffer = 1;
-          else
-            is_buffer = 0;
-        }
-      }
+      if (i == innermost)
+        is_buffer = 1;
+      else
+        is_buffer = 0;
 
       if (gen->options->autosa->two_level_buffer) {
         /* When two-level buffering is enabled,

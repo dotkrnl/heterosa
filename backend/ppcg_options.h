@@ -91,6 +91,9 @@ struct autosa_options {
   int simd_touch_space;
   /* Apply array contraction. */
   int array_contraction;
+  /* Explore loop permutation in the array partitioning. */
+  int explore_loop_permute;
+  int loop_permute_order;
 };
 
 struct ppcg_options {
