@@ -19,6 +19,7 @@
 #include <limits.h>
 #include <string.h>
 
+#include <algorithm>
 #include <iostream>
 #include <stdexcept>
 #include <utility>
@@ -34,9 +35,6 @@
 #else
 #define D(x)
 #endif
-
-#define min(a, b) (((a) < (b)) ? (a) : (b))
-#define max(a, b) (((a) > (b)) ? (a) : (b))
 
 enum autosa_group_access_type {
   AUTOSA_ACCESS_GLOBAL,
@@ -995,6 +993,8 @@ int autosa_array_is_read_only_scalar(struct autosa_array_info *array);
 int autosa_array_is_scalar(struct autosa_array_info *array);
 int autosa_kernel_requires_array_argument(struct autosa_kernel *kernel, int i);
 struct autosa_array_ref_group *autosa_array_ref_group_free(
+    struct autosa_array_ref_group *group);
+struct autosa_array_ref_group *autosa_array_ref_group_init(
     struct autosa_array_ref_group *group);
 struct autosa_array_tile *autosa_array_tile_free(
     struct autosa_array_tile *tile);

@@ -102,7 +102,9 @@ static int populate_array_references_pe(struct autosa_local_array_info *local,
     map = isl_map_from_union_map(umap);
     map = isl_map_detect_equalities(map);
 
-    group = isl_calloc_type(ctx, struct autosa_array_ref_group);
+    group = new autosa_array_ref_group;
+    memset(group, 0, sizeof(struct autosa_array_ref_group));
+    group = autosa_array_ref_group_init(group);
     if (!group) {
       isl_map_free(map);
       return -1;
@@ -146,7 +148,9 @@ static struct autosa_array_ref_group *join_groups(
   if (!group1 || !group2) return NULL;
 
   ctx = isl_map_get_ctx(group1->access);
-  group = isl_calloc_type(ctx, struct autosa_array_ref_group);
+  group = new autosa_array_ref_group;
+  memset(group, 0, sizeof(struct autosa_array_ref_group));
+  group = autosa_array_ref_group_init(group);
   if (!group) return NULL;
   group->local_array = group1->local_array;
   group->array = group1->array;
@@ -189,6 +193,8 @@ static struct autosa_array_ref_group *join_groups(
   group->n_io_buffer = group1->n_io_buffer;
   group->io_buffers = group1->io_buffers;
   group->n_mem_ports = group1->n_mem_ports;
+  group->local_tile = NULL;
+  group->pe_tile = NULL;
 
   return group;
 }
@@ -1024,7 +1030,9 @@ static int populate_array_references_io(struct autosa_local_array_info *local,
       map = isl_map_from_union_map(umap);
       map = isl_map_detect_equalities(map);
 
-      group = isl_calloc_type(ctx, struct autosa_array_ref_group);
+      group = new autosa_array_ref_group;
+      memset(group, 0, sizeof(struct autosa_array_ref_group));
+      group = autosa_array_ref_group_init(group);
       if (!group) {
         isl_map_free(map);
         return -1;
@@ -1051,6 +1059,7 @@ static int populate_array_references_io(struct autosa_local_array_info *local,
       group->copy_schedule = NULL;
       group->pe_tile = NULL;
       group->n_mem_ports = 1;
+      group->local_tile = NULL;
 
       groups[n++] = group;
     }
@@ -2680,6 +2689,7 @@ static isl_stat tile_set_depth(struct autosa_group_data *data,
 struct update_group_simd_data {
   struct autosa_array_ref_group *group;
   struct autosa_kernel *kernel;
+  int updated;
 };
 
 /* Examine if there is any array references in the "group" under the SIMD loop.
@@ -2726,7 +2736,10 @@ static isl_bool update_group_simd(__isl_keep isl_schedule_node *node,
                                      isl_union_set_from_set(dest));
           uset = isl_union_set_intersect(uset, isl_union_set_copy(domain));
           if (!isl_union_set_is_empty(uset)) {
-            if (ref->simd_stride == 1) group->n_lane = data->kernel->simd_w;
+            if (ref->simd_stride == 1) {
+              group->n_lane = data->kernel->simd_w;
+              data->updated = 1;
+            }
           }
           isl_union_set_free(uset);
         }
@@ -2771,6 +2784,7 @@ static isl_stat compute_io_group_data_pack(struct autosa_kernel *kernel,
   node = isl_schedule_get_root(kernel->schedule);
   data.group = group;
   data.kernel = kernel;
+  data.updated = 0;
   isl_schedule_node_foreach_descendant_top_down(node, &update_group_simd,
                                                 &data);
   isl_schedule_node_free(node);
@@ -2821,11 +2835,11 @@ static isl_stat compute_io_group_data_pack(struct autosa_kernel *kernel,
   for (int i = 0; i < group->io_level; i++) {
     struct autosa_io_buffer *buf = group->io_buffers[i];
     if (i == 0)
-      cur_max_n_lane = max(group->n_lane, data_pack_ubs[0] / ele_size);
+      cur_max_n_lane = std::max(group->n_lane, data_pack_ubs[0] / ele_size);
     else if (i > 0 && i < group->io_level - 1)
-      cur_max_n_lane = max(group->n_lane, data_pack_ubs[1] / ele_size);
+      cur_max_n_lane = std::max(group->n_lane, data_pack_ubs[1] / ele_size);
     else
-      cur_max_n_lane = max(group->n_lane, data_pack_ubs[2] / ele_size);
+      cur_max_n_lane = std::max(group->n_lane, data_pack_ubs[2] / ele_size);
     if (buf->tile && group->array->n_index > 0) {
       size = isl_val_copy(buf->tile->bound[group->array->n_index - 1].size);
     compute_data_pack:
@@ -3419,8 +3433,9 @@ static int group_array_references_drain(struct autosa_kernel *kernel,
       map = isl_map_detect_equalities(map);
 
       /* Add this access relation to the group. */
-      struct autosa_array_ref_group *group =
-          isl_calloc_type(ctx, struct autosa_array_ref_group);
+      struct autosa_array_ref_group *group = new autosa_array_ref_group;
+      memset(group, 0, sizeof(struct autosa_array_ref_group));
+      group = autosa_array_ref_group_init(group);
       if (!group) {
         isl_map_free(map);
         isl_set_free(drain_data.drain_domain);
@@ -3453,6 +3468,7 @@ static int group_array_references_drain(struct autosa_kernel *kernel,
       group->io_buffers = NULL;
       group->copy_schedule = NULL;
       group->pe_tile = NULL;
+      group->local_tile = NULL;
       group->n_mem_ports = 1;
 
       groups = (struct autosa_array_ref_group **)realloc(
@@ -3789,8 +3805,8 @@ isl_stat sa_io_construct_optimize(struct autosa_kernel *kernel,
       }
     }
 
-    local_array->n_lane = max(1, n_lane);
-    local_array->array->n_lane = max(1, n_lane);
+    local_array->n_lane = std::max(1, n_lane);
+    local_array->array->n_lane = std::max(1, n_lane);
   }
 
   isl_union_map_free(data.host_sched);

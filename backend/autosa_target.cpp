@@ -540,7 +540,7 @@ static __isl_give isl_printer *declare_and_allocate_arrays(
     } else if (local_array->array->copy_out)
       p = isl_printer_print_str(p, "tapa::write_only_mmap<");
     else
-      p = isl_printer_print_str(p, "tapa::placeholder_mmap<");
+      p = isl_printer_print_str(p, "tapa::read_write_mmap<");
     p = isl_printer_print_str(p, local_array->array->type);
     p = isl_printer_print_str(p, ">> buffer_");
     p = isl_printer_print_str(p, local_array->array->name);
@@ -568,6 +568,8 @@ static __isl_give isl_printer *declare_and_allocate_arrays(
         p = isl_printer_print_str(p, "tapa::read_only_mmap<");
       else if (local_array->array->copy_out)
         p = isl_printer_print_str(p, "tapa::write_only_mmap<");
+      else
+        p = isl_printer_print_str(p, "tapa::read_write_mmap<");
     }
     p = isl_printer_print_str(p, local_array->array->type);
     p = isl_printer_print_str(p, "> buffer_");
