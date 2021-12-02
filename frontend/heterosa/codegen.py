@@ -257,7 +257,7 @@ def simplify_expressions(lines):
 def lift_split_buffers(lines):
     """Lift the split buffers in the program
 
-    For each module, if we find any split buffers with the name "buf_data_split",
+    For each module, if we find any split buffers with the name "data_split",
     we will lift them out of the for loops and put them in the variable declaration
     section at the beginning of the module.
 
@@ -269,7 +269,7 @@ def lift_split_buffers(lines):
     code_len = len(lines)
     for pos in range(code_len):
         line = lines[pos]
-        if line.find("variable=buf_data_split") != -1:
+        if line.find("variable=data_split") != -1:
             # Search for the variable declaration section
             decl_pos = -1
             prev_pos = pos - 1
