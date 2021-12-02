@@ -861,7 +861,7 @@ __isl_give isl_printer *print_module_arguments(__isl_take isl_printer *p,
             p, module->io_groups[0]->array);
       }
       first = 0;
-    } else {
+    } else if (inter == -1) {
       /* Print a serialize fifo */
       int n_lane = module->data_pack_inter;
       if (!first) {
