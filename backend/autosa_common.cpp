@@ -1641,6 +1641,7 @@ int *read_data_pack_sizes_array(__isl_keep isl_union_map *sizes, char *name) {
 
   return data_pack_sizes;
 error:
+  free(data_pack_sizes);
   return NULL;
 }
 

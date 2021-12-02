@@ -714,6 +714,9 @@ static isl_bool is_external_access(__isl_keep isl_map *map, void *user) {
 /* This function takes the tagged access relation in the format of
  * {[S1[] -> pet_ref..] -> A[i,j]}
  * and returns the access matrix.
+ *
+ * Temporary: We only allow one non-zero component in the reuse vector to
+ * simplify the generation of hardware. We may relax it in the future.
  */
 static __isl_give isl_mat *get_acc_mat_from_tagged_acc(
     __isl_keep isl_map *map) {
@@ -809,6 +812,13 @@ static int rar_sol_smart_pick(__isl_keep isl_mat *mat, struct ppcg_scop *ps) {
     }
   }
 
+  /* Temporary: We only allow one non-zero component in the reuse vector to
+   * simplify the generation of hardware. We may relax it in the future.
+   */
+  if (min_non_zero_cnt > 1) {
+    return pick_idx;
+  }
+
   for (int c = 0; c < isl_mat_cols(mat); c++) {
     score[c] = 0;
     for (int r = 0; r < isl_mat_rows(mat); r++) {
@@ -902,6 +912,7 @@ static __isl_give isl_map *construct_dep_rar(__isl_keep isl_vec *sol,
  */
 static isl_stat build_rar_dep(__isl_take isl_map *map, void *user) {
   struct ppcg_scop *ps = (struct ppcg_scop *)(user);
+  isl_map *tagged_dep_rar;
   /* Examine if the read access is an external access. */
   isl_union_map *tagged_dep_flow = ps->tagged_dep_flow;
   isl_bool is_external =
@@ -921,31 +932,38 @@ static isl_stat build_rar_dep(__isl_take isl_map *map, void *user) {
      * using one independent solution based on hueristics.
      */
     int col = rar_sol_smart_pick(acc_null_mat, ps);
-    assert(col >= 0);
-    isl_vec *sol =
-        isl_vec_alloc(isl_map_get_ctx(map), isl_mat_rows(acc_null_mat));
-    for (int row = 0; row < isl_mat_rows(acc_null_mat); row++) {
-      sol = isl_vec_set_element_val(
-          sol, row, isl_mat_get_element_val(acc_null_mat, row, col));
-    }
-    isl_map *tagged_dep_rar = construct_dep_rar(sol, map);
-    isl_vec_free(sol);
-    isl_mat_free(acc_null_mat);
+    if (col >= 0) {
+      isl_vec *sol =
+          isl_vec_alloc(isl_map_get_ctx(map), isl_mat_rows(acc_null_mat));
+      for (int row = 0; row < isl_mat_rows(acc_null_mat); row++) {
+        sol = isl_vec_set_element_val(
+            sol, row, isl_mat_get_element_val(acc_null_mat, row, col));
+      }
+      tagged_dep_rar = construct_dep_rar(sol, map);
+      isl_vec_free(sol);
 
-    /* Test if the dependence is empty. In such case, we will build a identity
-     * map serving as a pseudo-dependence.
-     */
-    if (isl_map_is_empty(tagged_dep_rar)) {
-      isl_map_free(tagged_dep_rar);
+      /* Test if the dependence is empty. In such case, we will build a identity
+       * map serving as a pseudo-dependence.
+       */
+      if (isl_map_is_empty(tagged_dep_rar)) {
+        isl_map_free(tagged_dep_rar);
+        col = -1;
+      }
+    }
+
+    if (col < 0) {
       tagged_dep_rar = construct_pseudo_dep_rar(map);
     }
 
     ps->tagged_dep_rar = isl_union_map_union(
         ps->tagged_dep_rar, isl_union_map_from_map(tagged_dep_rar));
   } else {
-    isl_mat_free(acc_null_mat);
+    tagged_dep_rar = construct_pseudo_dep_rar(map);
+    ps->tagged_dep_rar = isl_union_map_union(
+        ps->tagged_dep_rar, isl_union_map_from_map(tagged_dep_rar));
   }
 
+  isl_mat_free(acc_null_mat);
   isl_map_free(map);
   return isl_stat_ok;
 }
@@ -964,7 +982,8 @@ static void derive_rar_dep_from_tagged_rar_dep(struct ppcg_scop *ps) {
 static void compute_tagged_rar_dep_only(struct ppcg_scop *ps) {
   /* For each read access, if the read is an external read access,
    * compute the null space of the access function, and
-   * construct the RAR deps based on the independent solution in the null space.
+   * construct the RAR deps based on the independent solution in the null
+   * space.
    */
   isl_union_map *tagged_reads = ps->tagged_reads;
   isl_union_map_foreach_map(tagged_reads, &build_rar_dep, ps);
