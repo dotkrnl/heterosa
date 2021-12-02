@@ -24,6 +24,8 @@ struct autosa_options {
   int n_hbm_port;
   /* Enable double buffering. */
   int double_buffer;
+  /* Double buffer assignment. */
+  char *double_buffer_assignment;
   /* Maximal systolic array dimension. */
   int max_sa_dim;
   /* Systolic array type. */
