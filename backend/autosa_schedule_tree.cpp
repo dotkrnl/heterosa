@@ -2048,11 +2048,12 @@ __isl_give isl_schedule_node *autosa_tree_move_down_to_io_mark(
   mark = isl_printer_get_str(p);
   p = isl_printer_free(p);
 
-  while ((is_mark = node_is_mark(node, mark)) == 0)
+  while ((is_mark = node_is_mark(node, mark)) == 0) {
+    if (!isl_schedule_node_has_children(node)) break;
     node = core_child(node, core);
+  }
 
-  if (is_mark < 0) node = isl_schedule_node_free(node);
-
+  if (is_mark <= 0) node = isl_schedule_node_free(node);
   free(mark);
   return node;
 }

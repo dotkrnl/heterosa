@@ -246,7 +246,7 @@ __isl_give isl_printer *autosa_array_info_print_declaration_argument(
   } else if (array->copy_out)
     p = isl_printer_print_str(p, "tapa::write_only_mmap<");
   else
-    p = isl_printer_print_str(p, "tapa::placeholder_mmap<");
+    p = isl_printer_print_str(p, "tapa::read_write_mmap<");
 
   if (n_lane == 1)
     p = isl_printer_print_str(p, array->type);

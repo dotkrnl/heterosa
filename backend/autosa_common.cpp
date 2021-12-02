@@ -341,7 +341,7 @@ static void free_array_info(struct autosa_prog *prog) {
     free(prog->array[i].refs);
     isl_union_map_free(prog->array[i].dep_order);
   }
-  free(prog->array);
+  delete[] prog->array;
 }
 
 /* Is the array "array" being extracted a read-only scalar?
@@ -517,6 +517,9 @@ static isl_stat extract_array_info(struct autosa_prog *prog,
 
   if (collect_references(prog, info) < 0) return isl_stat_error;
   info->only_fixed_element = only_fixed_element_accessed(info);
+  info->declare_local = 0;
+  info->dep_order = NULL;
+  info->declared_size = NULL;
 
   /* AutoSA Extended */
   info->n_lane = 0;
@@ -638,8 +641,8 @@ isl_stat collect_array_info(struct autosa_prog *prog) {
   isl_union_set *arrays;
 
   prog->n_array = 0;
-  prog->array = isl_calloc_array(prog->ctx, struct autosa_array_info,
-                                 prog->scop->pet->n_array);
+  prog->array = new autosa_array_info[prog->scop->pet->n_array];
+  memset(prog->array, 0, prog->scop->pet->n_array * sizeof(autosa_array_info));
   if (!prog->array) return isl_stat_error;
 
   arrays = isl_union_map_range(isl_union_map_copy(prog->read));
@@ -720,14 +723,55 @@ struct autosa_array_ref_group *autosa_array_ref_group_free(
   }
   free(group->io_buffers);
   isl_schedule_free(group->io_schedule);
-  isl_schedule_free(group->io_L1_schedule);
+  if (group->io_L1_schedule) isl_schedule_free(group->io_L1_schedule);
   isl_schedule_free(group->io_L1_lower_schedule);
   isl_union_pw_multi_aff_free(group->copy_schedule);
   if (group->attached_drain_group)
     autosa_array_ref_group_free(group->attached_drain_group);
-  free(group);
+  delete group;
 
   return NULL;
+}
+
+struct autosa_array_ref_group *autosa_array_ref_group_init(
+    struct autosa_array_ref_group *group) {
+  group->local_array = NULL;
+  group->array = NULL;
+  group->nr = -1;
+  group->access = NULL;
+  group->write = -1;
+  group->exact_write = -1;
+  group->slice = -1;
+  group->min_depth = -1;
+  group->shared_tile = NULL;
+  group->private_tile = NULL;
+  group->local_tile = NULL;
+  group->n_ref = 0;
+  group->refs = NULL;
+  group->io_buffers = NULL;
+  group->n_io_buffer = 0;
+  group->io_type = AUTOSA_UNKNOWN_IO;
+  group->pe_io_dir = IO_UNKNOWN;
+  group->array_io_dir = IO_UNKNOWN;
+  group->dir = NULL;
+  group->old_dir = NULL;
+  group->io_trans = NULL;
+  group->io_L1_trans = NULL;
+  group->io_pe_expr = NULL;
+  group->io_L1_pe_expr = NULL;
+  group->io_pe_expr_boundary = NULL;
+  group->io_L1_pe_expr_boundary = NULL;
+  group->io_schedule = NULL;
+  group->io_L1_schedule = NULL;
+  group->io_L1_lower_schedule = NULL;
+  group->io_level = 0;
+  group->space_dim = 0;
+  group->n_lane = 0;
+  group->copy_schedule_dim = 0;
+  group->copy_schedule = NULL;
+  group->attached_drain_group = NULL;
+
+  return group;
 }
 
 struct autosa_array_tile *autosa_array_tile_free(
